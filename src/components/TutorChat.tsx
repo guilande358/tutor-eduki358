@@ -6,11 +6,20 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, Bot, User, Loader2 } from "lucide-react";
+import { Send, Bot, User, Loader2, Paperclip, X, FileImage } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  attachments?: Attachment[];
+}
+
+interface Attachment {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  url?: string;
 }
 
 interface TutorChatProps {
@@ -22,7 +31,10 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,15 +56,42 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        setMessages(data.map(msg => ({
-          role: msg.role as "user" | "assistant",
-          content: msg.content
-        })));
+        // Carregar mensagens e seus anexos
+        const messagesWithAttachments = await Promise.all(
+          data.map(async (msg) => {
+            const { data: attachments } = await supabase
+              .from("chat_attachments")
+              .select("*")
+              .eq("message_id", msg.id);
+
+            // Obter URLs dos anexos
+            const attachmentsWithUrls = await Promise.all(
+              (attachments || []).map(async (att) => {
+                const { data: urlData } = await supabase.storage
+                  .from("chat-attachments")
+                  .createSignedUrl(att.file_path, 3600);
+
+                return {
+                  ...att,
+                  url: urlData?.signedUrl,
+                };
+              })
+            );
+
+            return {
+              role: msg.role as "user" | "assistant",
+              content: msg.content,
+              attachments: attachmentsWithUrls,
+            };
+          })
+        );
+
+        setMessages(messagesWithAttachments);
       } else {
         // Primeira vez - adicionar mensagem de boas-vindas
         const welcomeMessage: Message = {
           role: "assistant",
-          content: `Olá! 👋 Eu sou o EduKI, seu tutor de IA personalizado! Estou aqui para te ajudar a aprender qualquer coisa.\n\nVejo que você está no nível KI ${kiLevel}. Vou adaptar minhas explicações para o seu nível. O que gostaria de aprender hoje? 📚`,
+          content: `Olá! 👋 Eu sou o EduKI, seu tutor de IA personalizado! Estou aqui para te ajudar a aprender qualquer coisa.\n\nVejo que você está no nível KI ${kiLevel}. Vou adaptar minhas explicações para o seu nível. O que gostaria de aprender hoje? 📚\n\n💡 Dica: Você pode enviar imagens de exercícios para eu te ajudar!`,
         };
         setMessages([welcomeMessage]);
         await saveMessage(welcomeMessage);
@@ -84,22 +123,131 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
     }
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
 
-    const userMessage: Message = { role: "user", content: input };
+    if (imageFiles.length !== files.length) {
+      toast({
+        title: "Apenas imagens",
+        description: "Por favor, selecione apenas arquivos de imagem",
+        variant: "destructive",
+      });
+    }
+
+    setSelectedFiles((prev) => [...prev, ...imageFiles].slice(0, 3));
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFiles = async (messageId: string): Promise<Attachment[]> => {
+    if (selectedFiles.length === 0) return [];
+
+    setUploading(true);
+    const uploadedAttachments: Attachment[] = [];
+
+    try {
+      for (const file of selectedFiles) {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${userId}/${Date.now()}_${Math.random()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("chat-attachments")
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: attachmentData, error: attachmentError } = await supabase
+          .from("chat_attachments")
+          .insert({
+            message_id: messageId,
+            user_id: userId,
+            file_name: file.name,
+            file_path: fileName,
+            file_type: file.type,
+            file_size: file.size,
+          })
+          .select()
+          .single();
+
+        if (attachmentError) throw attachmentError;
+
+        const { data: urlData } = await supabase.storage
+          .from("chat-attachments")
+          .createSignedUrl(fileName, 3600);
+
+        uploadedAttachments.push({
+          ...attachmentData,
+          url: urlData?.signedUrl,
+        });
+      }
+
+      setSelectedFiles([]);
+      return uploadedAttachments;
+    } catch (error: any) {
+      console.error("Erro ao fazer upload:", error);
+      toast({
+        title: "Erro ao enviar arquivos",
+        description: error.message,
+        variant: "destructive",
+      });
+      return [];
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const sendMessage = async () => {
+    if ((!input.trim() && selectedFiles.length === 0) || loading) return;
+
+    const userMessage: Message = { 
+      role: "user", 
+      content: input || "📎 Enviou imagens"
+    };
+    
     setMessages((prev) => [...prev, userMessage]);
+    const messageContent = input;
     setInput("");
     setLoading(true);
 
     // Salvar mensagem do usuário
-    await saveMessage(userMessage);
+    const { data: savedMessage } = await supabase
+      .from("chat_messages")
+      .insert({
+        user_id: userId,
+        role: userMessage.role,
+        content: userMessage.content,
+      })
+      .select()
+      .single();
+
+    // Upload de anexos
+    let attachments: Attachment[] = [];
+    if (savedMessage && selectedFiles.length > 0) {
+      attachments = await uploadFiles(savedMessage.id);
+      setMessages((prev) =>
+        prev.map((msg, idx) =>
+          idx === prev.length - 1 ? { ...msg, attachments } : msg
+        )
+      );
+    }
 
     try {
+      // Preparar mensagens para a IA, incluindo informação sobre anexos
+      const messagesForAI = [...messages, userMessage].map((msg) => ({
+        role: msg.role,
+        content: msg.attachments && msg.attachments.length > 0
+          ? `${msg.content}\n\n[Usuário anexou ${msg.attachments.length} imagem(ns). Por favor, considere que o estudante enviou imagens relacionadas à pergunta.]`
+          : msg.content,
+      }));
+
       const { data, error } = await supabase.functions.invoke("ai-tutor", {
         body: {
-          messages: [...messages, userMessage],
+          messages: messagesForAI,
           kiLevel,
+          hasAttachments: attachments.length > 0,
         },
       });
 
@@ -180,6 +328,22 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {message.attachments && message.attachments.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {message.attachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        className="relative rounded-lg overflow-hidden border-2 border-white/20"
+                      >
+                        <img
+                          src={attachment.url}
+                          alt={attachment.file_name}
+                          className="max-w-full h-auto max-h-48 object-contain"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               {message.role === "user" && (
                 <Avatar className="shrink-0">
@@ -206,22 +370,63 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t">
+      <div className="p-4 border-t space-y-3">
+        {selectedFiles.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {selectedFiles.map((file, index) => (
+              <div
+                key={index}
+                className="relative group bg-muted rounded-lg p-2 flex items-center gap-2"
+              >
+                <FileImage className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground max-w-[100px] truncate">
+                  {file.name}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 absolute -top-1 -right-1 bg-background rounded-full"
+                  onClick={() => removeFile(index)}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading || uploading || selectedFiles.length >= 3}
+            title="Anexar imagem (máx. 3)"
+          >
+            <Paperclip className="w-4 h-4" />
+          </Button>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Pergunte qualquer coisa..."
-            disabled={loading}
+            placeholder="Pergunte qualquer coisa ou envie uma imagem..."
+            disabled={loading || uploading}
             className="flex-1"
           />
           <Button
             onClick={sendMessage}
-            disabled={loading || !input.trim()}
+            disabled={loading || uploading || (!input.trim() && selectedFiles.length === 0)}
             className="bg-gradient-primary"
           >
-            {loading ? (
+            {loading || uploading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Send className="w-4 h-4" />

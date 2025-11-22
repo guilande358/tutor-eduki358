@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Brain, Zap, Heart, Target, TrendingUp, Award } from "lucide-react";
+import SuggestionsPanel from "./SuggestionsPanel";
 
 interface UserProgress {
   ki_level: number;
@@ -144,6 +145,9 @@ const Dashboard = ({ userId }: DashboardProps) => {
           <Brain className="w-16 h-16 opacity-20" />
         </div>
       </Card>
+
+      {/* Sugestões */}
+      <SuggestionsPanel userId={userId} />
     </div>
   );
 };

@@ -41,6 +41,39 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -146,6 +179,42 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string
+        }
+        Relationships: []
+      }
+      student_suggestions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string
+          id: string
+          is_completed: boolean
+          priority: number
+          suggestion_type: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          is_completed?: boolean
+          priority?: number
+          suggestion_type: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          is_completed?: boolean
+          priority?: number
+          suggestion_type?: string
+          title?: string
+          user_id?: string
         }
         Relationships: []
       }
