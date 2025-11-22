@@ -19,20 +19,64 @@ interface TutorChatProps {
 }
 
 const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: `Olá! 👋 Eu sou o EduKI, seu tutor de IA personalizado! Estou aqui para te ajudar a aprender qualquer coisa.\n\nVejo que você está no nível KI ${kiLevel}. Vou adaptar minhas explicações para o seu nível. O que gostaria de aprender hoje? 📚`,
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
+    loadChatHistory();
+  }, [userId]);
+
+  useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const loadChatHistory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setMessages(data.map(msg => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content
+        })));
+      } else {
+        // Primeira vez - adicionar mensagem de boas-vindas
+        const welcomeMessage: Message = {
+          role: "assistant",
+          content: `Olá! 👋 Eu sou o EduKI, seu tutor de IA personalizado! Estou aqui para te ajudar a aprender qualquer coisa.\n\nVejo que você está no nível KI ${kiLevel}. Vou adaptar minhas explicações para o seu nível. O que gostaria de aprender hoje? 📚`,
+        };
+        setMessages([welcomeMessage]);
+        await saveMessage(welcomeMessage);
+      }
+    } catch (error: any) {
+      console.error("Erro ao carregar histórico:", error);
+    }
+  };
+
+  const saveMessage = async (message: Message) => {
+    try {
+      const { error } = await supabase
+        .from("chat_messages")
+        .insert({
+          user_id: userId,
+          role: message.role,
+          content: message.content,
+        });
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Erro ao salvar mensagem:", error);
+    }
+  };
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -47,6 +91,9 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
+
+    // Salvar mensagem do usuário
+    await saveMessage(userMessage);
 
     try {
       const { data, error } = await supabase.functions.invoke("ai-tutor", {
@@ -72,6 +119,9 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
         content: data.reply,
       };
       setMessages((prev) => [...prev, assistantMessage]);
+      
+      // Salvar resposta do assistente
+      await saveMessage(assistantMessage);
     } catch (error: any) {
       toast({
         title: "Erro ao conversar com o tutor",
