@@ -7,14 +7,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
 import TutorChat from "@/components/TutorChat";
 import ExercisePanel from "@/components/ExercisePanel";
-import { GraduationCap, LogOut, MessageSquare, Dumbbell, BarChart } from "lucide-react";
+import AchievementsPanel from "@/components/AchievementsPanel";
+import { GraduationCap, LogOut, MessageSquare, Dumbbell, BarChart, Trophy } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useAchievements } from "@/hooks/useAchievements";
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [kiLevel, setKiLevel] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // Hook para verificar conquistas automaticamente
+  useAchievements(user?.id || "");
 
   useEffect(() => {
     // Verificar sessão atual
@@ -99,7 +104,7 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3 h-12">
+          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-4 h-12">
             <TabsTrigger value="dashboard" className="gap-2">
               <BarChart className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -111,6 +116,10 @@ const Index = () => {
             <TabsTrigger value="exercises" className="gap-2">
               <Dumbbell className="w-4 h-4" />
               <span className="hidden sm:inline">Exercícios</span>
+            </TabsTrigger>
+            <TabsTrigger value="achievements" className="gap-2">
+              <Trophy className="w-4 h-4" />
+              <span className="hidden sm:inline">Conquistas</span>
             </TabsTrigger>
           </TabsList>
 
@@ -124,6 +133,10 @@ const Index = () => {
 
           <TabsContent value="exercises" className="max-w-4xl mx-auto">
             <ExercisePanel userId={user.id} kiLevel={kiLevel} />
+          </TabsContent>
+
+          <TabsContent value="achievements" className="max-w-6xl mx-auto">
+            <AchievementsPanel userId={user.id} />
           </TabsContent>
         </Tabs>
       </main>
