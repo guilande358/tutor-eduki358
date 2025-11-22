@@ -261,15 +261,22 @@ const ExercisePanel = ({ userId, kiLevel }: ExercisePanelProps) => {
                   <p className="text-sm">{exercise.explanation}</p>
                 </div>
                 <Button
-                  onClick={() => {
-                    setExercise(null);
-                    setSelectedAnswer(null);
-                    setShowResult(false);
-                  }}
+                  onClick={generateExercise}
+                  disabled={loading}
                   variant="outline"
                   className="w-full"
                 >
-                  Novo Exercício
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Novo Exercício
+                    </>
+                  )}
                 </Button>
               </div>
             )}
