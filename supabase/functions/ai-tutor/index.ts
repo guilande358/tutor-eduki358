@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, kiLevel } = await req.json();
-    console.log('Tutor AI request:', { messagesCount: messages.length, kiLevel });
+    const { messages, kiLevel, hasAttachments } = await req.json();
+    console.log('Tutor AI request:', { messagesCount: messages.length, kiLevel, hasAttachments });
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -39,6 +39,9 @@ serve(async (req) => {
 3. Dar feedback motivador e construtivo
 4. Usar emojis educacionais para deixar a conversa mais leve (📚, 🎯, 💡, ⭐, 🏆)
 5. Celebrar progresso e incentivar o estudo contínuo
+6. Quando o aluno enviar imagens de exercícios ou problemas, analise-as e ajude a resolver
+
+${hasAttachments ? '\n⚠️ IMPORTANTE: O aluno enviou imagens. Analise o contexto e forneça ajuda específica relacionada às imagens enviadas.' : ''}
 
 Mantenha respostas concisas mas completas. Use exemplos práticos sempre que possível.`;
 
