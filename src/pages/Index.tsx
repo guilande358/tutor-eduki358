@@ -135,6 +135,7 @@ const Index = () => {
               userId={user.id}
               currentLives={currentLives}
               onLivesUpdate={fetchKiLevel}
+              kiLevel={kiLevel}
             />
           </div>
         )}
