@@ -128,6 +128,42 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_goals: {
+        Row: {
+          completed_at: string | null
+          completed_exercises: number | null
+          created_at: string | null
+          goal_date: string
+          id: string
+          is_completed: boolean | null
+          target_exercises: number | null
+          user_id: string
+          xp_reward: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_exercises?: number | null
+          created_at?: string | null
+          goal_date?: string
+          id?: string
+          is_completed?: boolean | null
+          target_exercises?: number | null
+          user_id: string
+          xp_reward?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          completed_exercises?: number | null
+          created_at?: string | null
+          goal_date?: string
+          id?: string
+          is_completed?: boolean | null
+          target_exercises?: number | null
+          user_id?: string
+          xp_reward?: number | null
+        }
+        Relationships: []
+      }
       learning_history: {
         Row: {
           created_at: string | null
@@ -224,10 +260,14 @@ export type Database = {
           daily_streak: number | null
           id: string
           ki_level: number | null
+          last_life_lost_at: string | null
           last_study_date: string | null
           lives: number | null
+          sound_enabled: boolean | null
+          theme: string | null
           updated_at: string | null
           user_id: string
+          vibration_enabled: boolean | null
           xp: number | null
         }
         Insert: {
@@ -235,10 +275,14 @@ export type Database = {
           daily_streak?: number | null
           id?: string
           ki_level?: number | null
+          last_life_lost_at?: string | null
           last_study_date?: string | null
           lives?: number | null
+          sound_enabled?: boolean | null
+          theme?: string | null
           updated_at?: string | null
           user_id: string
+          vibration_enabled?: boolean | null
           xp?: number | null
         }
         Update: {
@@ -246,11 +290,57 @@ export type Database = {
           daily_streak?: number | null
           id?: string
           ki_level?: number | null
+          last_life_lost_at?: string | null
           last_study_date?: string | null
           lives?: number | null
+          sound_enabled?: boolean | null
+          theme?: string | null
           updated_at?: string | null
           user_id?: string
+          vibration_enabled?: boolean | null
           xp?: number | null
+        }
+        Relationships: []
+      }
+      wrong_answers: {
+        Row: {
+          correct_answer: number
+          created_at: string | null
+          difficulty: string
+          explanation: string
+          id: string
+          options: string[]
+          question: string
+          subject: string
+          topic: string
+          user_answer: number
+          user_id: string
+        }
+        Insert: {
+          correct_answer: number
+          created_at?: string | null
+          difficulty: string
+          explanation: string
+          id?: string
+          options: string[]
+          question: string
+          subject: string
+          topic: string
+          user_answer: number
+          user_id: string
+        }
+        Update: {
+          correct_answer?: number
+          created_at?: string | null
+          difficulty?: string
+          explanation?: string
+          id?: string
+          options?: string[]
+          question?: string
+          subject?: string
+          topic?: string
+          user_answer?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -259,7 +349,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_daily_goal_if_not_exists: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
