@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, Bot, User, Loader2, Paperclip, X, FileImage } from "lucide-react";
+import { Send, Bot, User, Loader2, Paperclip, X, FileImage, Maximize2, Minimize2 } from "lucide-react";
+import ConversationDrawer from "@/components/ConversationDrawer";
 
 interface Message {
   role: "user" | "assistant";
@@ -33,13 +34,15 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     loadChatHistory();
-  }, [userId]);
+  }, [userId, currentConversationId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -47,10 +50,45 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
 
   const loadChatHistory = async () => {
     try {
+      let conversationId = currentConversationId;
+
+      // Se não há conversa atual, criar ou buscar a mais recente
+      if (!conversationId) {
+        const { data: conversations, error: convError } = await supabase
+          .from("conversations")
+          .select("id")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false })
+          .limit(1);
+
+        if (convError) throw convError;
+
+        if (conversations && conversations.length > 0) {
+          conversationId = conversations[0].id;
+          setCurrentConversationId(conversationId);
+        } else {
+          // Criar nova conversa
+          const { data: newConv, error: createError } = await supabase
+            .from("conversations")
+            .insert({
+              user_id: userId,
+              title: "Nova conversa",
+            })
+            .select()
+            .single();
+
+          if (createError) throw createError;
+          conversationId = newConv.id;
+          setCurrentConversationId(conversationId);
+        }
+      }
+
+      // Carregar mensagens da conversa
       const { data, error } = await supabase
         .from("chat_messages")
         .select("*")
         .eq("user_id", userId)
+        .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
@@ -94,24 +132,49 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
           content: `Olá! 👋 Eu sou o EduKI, seu tutor de IA personalizado! Estou aqui para te ajudar a aprender qualquer coisa.\n\nVejo que você está no nível KI ${kiLevel}. Vou adaptar minhas explicações para o seu nível. O que gostaria de aprender hoje? 📚\n\n💡 Dica: Você pode enviar imagens de exercícios para eu te ajudar!`,
         };
         setMessages([welcomeMessage]);
-        await saveMessage(welcomeMessage);
+        await saveMessage(welcomeMessage, conversationId);
       }
     } catch (error: any) {
       console.error("Erro ao carregar histórico:", error);
     }
   };
 
-  const saveMessage = async (message: Message) => {
+  const saveMessage = async (message: Message, conversationId?: string) => {
     try {
+      const convId = conversationId || currentConversationId;
+      if (!convId) return;
+
       const { error } = await supabase
         .from("chat_messages")
         .insert({
           user_id: userId,
+          conversation_id: convId,
           role: message.role,
           content: message.content,
         });
 
       if (error) throw error;
+
+      // Atualizar título da conversa baseado na primeira mensagem do usuário
+      if (message.role === "user") {
+        const { data: messages } = await supabase
+          .from("chat_messages")
+          .select("id")
+          .eq("conversation_id", convId)
+          .eq("role", "user");
+
+        // Se é a primeira mensagem do usuário, atualizar título
+        if (messages && messages.length === 1) {
+          const title = message.content.length > 40
+            ? message.content.substring(0, 40) + "..."
+            : message.content;
+
+          await supabase
+            .from("conversations")
+            .update({ title })
+            .eq("id", convId);
+        }
+      }
     } catch (error: any) {
       console.error("Erro ao salvar mensagem:", error);
     }
@@ -217,6 +280,7 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
       .from("chat_messages")
       .insert({
         user_id: userId,
+        conversation_id: currentConversationId,
         role: userMessage.role,
         content: userMessage.content,
       })
@@ -268,8 +332,16 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
       };
       setMessages((prev) => [...prev, assistantMessage]);
       
-      // Salvar resposta do assistente
+      // Salvar resposta do assistente e atualizar conversa
       await saveMessage(assistantMessage);
+      
+      // Atualizar updated_at da conversa
+      if (currentConversationId) {
+        await supabase
+          .from("conversations")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", currentConversationId);
+      }
     } catch (error: any) {
       toast({
         title: "Erro ao conversar com o tutor",
@@ -288,21 +360,77 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
     }
   };
 
+  const handleNewConversation = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("conversations")
+        .insert({
+          user_id: userId,
+          title: "Nova conversa",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setCurrentConversationId(data.id);
+      setMessages([]);
+      
+      toast({
+        title: "Nova conversa iniciada",
+        description: "Comece a conversar com o tutor!",
+      });
+    } catch (error: any) {
+      console.error("Erro ao criar conversa:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar uma nova conversa",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSelectConversation = (conversationId: string) => {
+    setCurrentConversationId(conversationId);
+    setMessages([]);
+  };
+
   return (
-    <Card className="flex flex-col h-[600px] shadow-lg">
-      <div className="p-4 border-b bg-gradient-primary text-white rounded-t-lg">
-        <div className="flex items-center gap-3">
-          <Avatar className="border-2 border-white">
-            <AvatarFallback className="bg-white text-primary">
-              <Bot className="w-5 h-5" />
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h3 className="font-semibold">Tutor EduKI</h3>
-            <p className="text-xs text-white/80">Sempre pronto para te ajudar</p>
+    <div className={`${isFullScreen ? "fixed inset-0 z-50 bg-background" : ""}`}>
+      <Card className={`flex flex-col shadow-lg ${isFullScreen ? "h-screen rounded-none" : "h-[600px]"}`}>
+        <div className="p-4 border-b bg-gradient-primary text-white rounded-t-lg">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <ConversationDrawer
+                userId={userId}
+                currentConversationId={currentConversationId}
+                onConversationSelect={handleSelectConversation}
+                onNewConversation={handleNewConversation}
+              />
+              <Avatar className="border-2 border-white">
+                <AvatarFallback className="bg-white text-primary">
+                  <Bot className="w-5 h-5" />
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h3 className="font-semibold">Tutor EduKI</h3>
+                <p className="text-xs text-white/80">Sempre pronto para te ajudar</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsFullScreen(!isFullScreen)}
+              className="text-white hover:bg-white/20"
+            >
+              {isFullScreen ? (
+                <Minimize2 className="w-5 h-5" />
+              ) : (
+                <Maximize2 className="w-5 h-5" />
+              )}
+            </Button>
           </div>
         </div>
-      </div>
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
@@ -435,6 +563,7 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
         </div>
       </div>
     </Card>
+    </div>
   );
 };
 
