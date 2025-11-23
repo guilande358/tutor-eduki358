@@ -4,17 +4,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Dashboard from "@/components/Dashboard";
+import HomePanel from "@/components/HomePanel";
 import TutorChat from "@/components/TutorChat";
 import ExercisePanel from "@/components/ExercisePanel";
 import AchievementsPanel from "@/components/AchievementsPanel";
-import { GraduationCap, LogOut, MessageSquare, Dumbbell, BarChart, Trophy } from "lucide-react";
+import WrongAnswersPanel from "@/components/WrongAnswersPanel";
+import LivesTimer from "@/components/LivesTimer";
+import ProfileDrawer from "@/components/ProfileDrawer";
+import { GraduationCap, LogOut, MessageSquare, Dumbbell, Trophy, AlertCircle, Home } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAchievements } from "@/hooks/useAchievements";
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [kiLevel, setKiLevel] = useState(0);
+  const [currentLives, setCurrentLives] = useState(3);
+  const [activeTab, setActiveTab] = useState("home");
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -22,6 +27,22 @@ const Index = () => {
   useAchievements(user?.id || "");
 
   useEffect(() => {
+    // Aplicar tema salvo
+    const applyTheme = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from('user_progress')
+          .select('theme')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (data?.theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      }
+    };
+    applyTheme();
+
     // Verificar sessão atual
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -39,7 +60,7 @@ const Index = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, user?.id]);
 
   useEffect(() => {
     if (user) {
@@ -52,12 +73,13 @@ const Index = () => {
     
     const { data } = await supabase
       .from('user_progress')
-      .select('ki_level')
+      .select('ki_level, lives')
       .eq('user_id', user.id)
       .single();
 
     if (data) {
       setKiLevel(data.ki_level);
+      setCurrentLives(data.lives || 3);
     }
   };
 
@@ -88,26 +110,40 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground">Seu tutor de IA</p>
               </div>
             </div>
-            <Button
-              onClick={handleSignOut}
-              variant="ghost"
-              size="sm"
-              className="gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Sair
-            </Button>
+            <div className="flex items-center gap-2">
+              <ProfileDrawer userId={user.id} />
+              <Button
+                onClick={handleSignOut}
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Sair
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-4 h-12">
-            <TabsTrigger value="dashboard" className="gap-2">
-              <BarChart className="w-4 h-4" />
-              <span className="hidden sm:inline">Dashboard</span>
+        {/* Timer de Vidas */}
+        {currentLives < 5 && (
+          <div className="max-w-4xl mx-auto mb-6">
+            <LivesTimer
+              userId={user.id}
+              currentLives={currentLives}
+              onLivesUpdate={fetchKiLevel}
+            />
+          </div>
+        )}
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-5 h-12">
+            <TabsTrigger value="home" className="gap-2">
+              <Home className="w-4 h-4" />
+              <span className="hidden sm:inline">Início</span>
             </TabsTrigger>
             <TabsTrigger value="tutor" className="gap-2">
               <MessageSquare className="w-4 h-4" />
@@ -117,14 +153,22 @@ const Index = () => {
               <Dumbbell className="w-4 h-4" />
               <span className="hidden sm:inline">Exercícios</span>
             </TabsTrigger>
+            <TabsTrigger value="wrong-answers" className="gap-2">
+              <AlertCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Meus Erros</span>
+            </TabsTrigger>
             <TabsTrigger value="achievements" className="gap-2">
               <Trophy className="w-4 h-4" />
               <span className="hidden sm:inline">Conquistas</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dashboard" className="space-y-6">
-            <Dashboard userId={user.id} />
+          <TabsContent value="home" className="max-w-4xl mx-auto">
+            <HomePanel
+              userId={user.id}
+              onStartExercise={() => setActiveTab("exercises")}
+              onContinueStudying={() => setActiveTab("tutor")}
+            />
           </TabsContent>
 
           <TabsContent value="tutor" className="max-w-4xl mx-auto">
@@ -133,6 +177,10 @@ const Index = () => {
 
           <TabsContent value="exercises" className="max-w-4xl mx-auto">
             <ExercisePanel userId={user.id} kiLevel={kiLevel} />
+          </TabsContent>
+
+          <TabsContent value="wrong-answers" className="max-w-4xl mx-auto">
+            <WrongAnswersPanel userId={user.id} />
           </TabsContent>
 
           <TabsContent value="achievements" className="max-w-6xl mx-auto">
