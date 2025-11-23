@@ -11,18 +11,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import MicroLessonPanel from "./MicroLessonPanel";
 
 interface LivesTimerProps {
   userId: string;
   currentLives: number;
   onLivesUpdate: () => void;
+  kiLevel: number;
 }
 
-const LivesTimer = ({ userId, currentLives, onLivesUpdate }: LivesTimerProps) => {
+const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimerProps) => {
   const [timeUntilNextLife, setTimeUntilNextLife] = useState<string>("");
   const [lastLifeLost, setLastLifeLost] = useState<Date | null>(null);
   const [showRewardDialog, setShowRewardDialog] = useState(false);
   const [isLoadingAd, setIsLoadingAd] = useState(false);
+  const [showMicroLesson, setShowMicroLesson] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -190,14 +193,31 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate }: LivesTimerProps) =>
     }
   };
 
-  const completeMicroLesson = async () => {
+  const completeMicroLesson = () => {
+    setShowMicroLesson(true);
+  };
+
+  const handleMicroLessonComplete = () => {
+    setShowMicroLesson(false);
+    onLivesUpdate();
     toast({
-      title: "Em breve!",
-      description: "Micro-aulas em desenvolvimento",
+      title: "Parabéns! 🎉",
+      description: "Você completou a micro-aula e ganhou +1 vida!",
     });
   };
 
   if (currentLives >= 5) return null;
+
+  if (showMicroLesson) {
+    return (
+      <MicroLessonPanel
+        userId={userId}
+        kiLevel={kiLevel}
+        onClose={() => setShowMicroLesson(false)}
+        onComplete={handleMicroLessonComplete}
+      />
+    );
+  }
 
   return (
     <Card className="p-4 bg-gradient-card shadow-md border-2 border-destructive/20">
