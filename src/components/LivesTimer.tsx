@@ -1,9 +1,16 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Clock, PlayCircle, BookOpen } from "lucide-react";
+import { Heart, Clock, PlayCircle, BookOpen, Gift } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface LivesTimerProps {
   userId: string;
@@ -14,6 +21,8 @@ interface LivesTimerProps {
 const LivesTimer = ({ userId, currentLives, onLivesUpdate }: LivesTimerProps) => {
   const [timeUntilNextLife, setTimeUntilNextLife] = useState<string>("");
   const [lastLifeLost, setLastLifeLost] = useState<Date | null>(null);
+  const [showRewardDialog, setShowRewardDialog] = useState(false);
+  const [isLoadingAd, setIsLoadingAd] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -76,25 +85,109 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate }: LivesTimerProps) =>
   };
 
   const watchAdForLife = async () => {
-    // Simular assistir vídeo (30 segundos)
+    setIsLoadingAd(true);
+    
     toast({
-      title: "Assistindo anúncio...",
-      description: "Aguarde 30 segundos para ganhar uma vida",
+      title: "Carregando anúncio...",
+      description: "Por favor, aguarde",
     });
 
-    setTimeout(async () => {
-      const newLives = Math.min(currentLives + 1, 5);
-      await supabase
-        .from('user_progress')
-        .update({ lives: newLives })
-        .eq('user_id', userId);
+    try {
+      // Load AdMob Rewarded Ad
+      if ((window as any).adsbygoogle) {
+        const adBreak = (window as any).adBreak;
+        const adConfig = (window as any).adConfig;
+        
+        if (adBreak && adConfig) {
+          await adConfig({
+            preloadAdBreaks: 'on',
+            sound: 'on',
+          });
+
+          await adBreak({
+            type: 'reward',
+            name: 'reward-ad',
+            beforeAd: () => {
+              toast({
+                title: "Anúncio iniciado",
+                description: "Assista até o final para escolher sua recompensa!",
+              });
+            },
+            afterAd: () => {
+              setShowRewardDialog(true);
+            },
+            adBreakDone: (placementInfo: any) => {
+              if (placementInfo.breakStatus === 'viewed') {
+                setShowRewardDialog(true);
+              } else {
+                toast({
+                  title: "Anúncio não completado",
+                  description: "Você precisa assistir o anúncio completo para ganhar a recompensa",
+                  variant: "destructive",
+                });
+              }
+              setIsLoadingAd(false);
+            },
+          });
+        } else {
+          throw new Error("AdMob não configurado");
+        }
+      } else {
+        throw new Error("AdMob não disponível");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar anúncio:", error);
+      toast({
+        title: "Erro ao carregar anúncio",
+        description: "Tente novamente mais tarde",
+        variant: "destructive",
+      });
+      setIsLoadingAd(false);
+    }
+  };
+
+  const claimReward = async (rewardType: 'life' | 'xp') => {
+    try {
+      if (rewardType === 'life') {
+        const newLives = Math.min(currentLives + 1, 5);
+        await supabase
+          .from('user_progress')
+          .update({ lives: newLives })
+          .eq('user_id', userId);
+        
+        toast({
+          title: "Vida recuperada! ❤️",
+          description: "Você ganhou uma vida!",
+        });
+      } else {
+        const { data: currentProgress } = await supabase
+          .from('user_progress')
+          .select('xp')
+          .eq('user_id', userId)
+          .single();
+
+        const newXp = (currentProgress?.xp || 0) + 50;
+        await supabase
+          .from('user_progress')
+          .update({ xp: newXp })
+          .eq('user_id', userId);
+
+        toast({
+          title: "XP ganho! ⭐",
+          description: "Você ganhou 50 XP!",
+        });
+      }
       
       onLivesUpdate();
+      setShowRewardDialog(false);
+    } catch (error) {
+      console.error("Erro ao conceder recompensa:", error);
       toast({
-        title: "Vida recuperada! 🎉",
-        description: "Obrigado por assistir o anúncio!",
+        title: "Erro",
+        description: "Não foi possível conceder a recompensa",
+        variant: "destructive",
       });
-    }, 3000); // Simulando 3s em vez de 30s para demo
+    }
   };
 
   const completeMicroLesson = async () => {
@@ -148,9 +241,10 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate }: LivesTimerProps) =>
               variant="outline"
               size="sm"
               className="gap-2"
+              disabled={isLoadingAd}
             >
               <PlayCircle className="w-4 h-4" />
-              Assistir Vídeo
+              {isLoadingAd ? "Carregando..." : "Assistir Vídeo"}
             </Button>
             <Button
               onClick={completeMicroLesson}
@@ -164,6 +258,38 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate }: LivesTimerProps) =>
           </div>
         </div>
       </div>
+
+      <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center flex items-center justify-center gap-2">
+              <Gift className="w-6 h-6 text-primary" />
+              Escolha sua recompensa!
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Obrigado por assistir o anúncio! Escolha sua recompensa:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <Button
+              onClick={() => claimReward('life')}
+              className="h-24 flex flex-col gap-2"
+              variant="outline"
+            >
+              <Heart className="w-8 h-8 text-destructive" />
+              <span className="font-semibold">+1 Vida</span>
+            </Button>
+            <Button
+              onClick={() => claimReward('xp')}
+              className="h-24 flex flex-col gap-2"
+              variant="outline"
+            >
+              <Gift className="w-8 h-8 text-primary" />
+              <span className="font-semibold">+50 XP</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
