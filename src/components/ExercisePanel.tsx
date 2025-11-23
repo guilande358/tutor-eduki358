@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Trophy, X, Check, Sparkles } from "lucide-react";
+import { Loader2, Trophy, X, Check, Sparkles, BookOpen } from "lucide-react";
+import StepByStepModal from "./StepByStepModal";
+import { playCorrectSound, playWrongSound, vibrateCorrect, vibrateWrong } from "@/utils/sounds";
 
 interface Exercise {
   question: string;
@@ -29,7 +31,23 @@ const ExercisePanel = ({ userId, kiLevel }: ExercisePanelProps) => {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showStepByStep, setShowStepByStep] = useState(false);
+  const [userSettings, setUserSettings] = useState({ sound_enabled: true, vibration_enabled: true });
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchUserSettings();
+  }, [userId]);
+
+  const fetchUserSettings = async () => {
+    const { data } = await supabase
+      .from('user_progress')
+      .select('sound_enabled, vibration_enabled')
+      .eq('user_id', userId)
+      .single();
+
+    if (data) setUserSettings(data);
+  };
 
   const generateExercise = async () => {
     if (!subject || !topic) {
@@ -80,6 +98,28 @@ const ExercisePanel = ({ userId, kiLevel }: ExercisePanelProps) => {
     setShowResult(true);
     const isCorrect = selectedAnswer === exercise.correctAnswer;
 
+    // Sons e vibração
+    if (isCorrect) {
+      if (userSettings.sound_enabled) playCorrectSound();
+      if (userSettings.vibration_enabled) vibrateCorrect();
+    } else {
+      if (userSettings.sound_enabled) playWrongSound();
+      if (userSettings.vibration_enabled) vibrateWrong();
+      
+      // Salvar questão errada
+      await supabase.from('wrong_answers').insert({
+        user_id: userId,
+        subject,
+        topic,
+        question: exercise.question,
+        options: exercise.options,
+        correct_answer: exercise.correctAnswer,
+        user_answer: selectedAnswer,
+        explanation: exercise.explanation,
+        difficulty,
+      });
+    }
+
     // Calcular XP baseado na dificuldade e resultado
     const baseXP = difficulty === "facil" ? 10 : difficulty === "medio" ? 20 : 30;
     const xpEarned = isCorrect ? baseXP : Math.floor(baseXP / 2);
@@ -93,6 +133,36 @@ const ExercisePanel = ({ userId, kiLevel }: ExercisePanelProps) => {
       xp_earned: xpEarned,
     });
 
+    // Atualizar meta diária
+    const today = new Date().toISOString().split('T')[0];
+    const { data: goal } = await supabase
+      .from('daily_goals')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('goal_date', today)
+      .single();
+
+    if (goal) {
+      const newCompleted = goal.completed_exercises + 1;
+      const isCompleted = newCompleted >= goal.target_exercises;
+      
+      await supabase
+        .from('daily_goals')
+        .update({
+          completed_exercises: newCompleted,
+          is_completed: isCompleted,
+          completed_at: isCompleted ? new Date().toISOString() : null,
+        })
+        .eq('id', goal.id);
+
+      if (isCompleted && !goal.is_completed) {
+        toast({
+          title: "Meta diária concluída! 🎉",
+          description: `+${goal.xp_reward} XP de bônus!`,
+        });
+      }
+    }
+
     // Atualizar progresso do usuário
     const { data: currentProgress } = await supabase
       .from('user_progress')
@@ -101,7 +171,8 @@ const ExercisePanel = ({ userId, kiLevel }: ExercisePanelProps) => {
       .single();
 
     if (currentProgress) {
-      const newXP = currentProgress.xp + xpEarned;
+      const bonusXP = goal?.is_completed === false && goal.completed_exercises + 1 >= goal.target_exercises ? goal.xp_reward : 0;
+      const newXP = currentProgress.xp + xpEarned + bonusXP;
       const kiAdjustment = isCorrect ? 2 : -1;
       const newKI = Math.max(0, Math.min(100, currentProgress.ki_level + kiAdjustment));
 
@@ -260,6 +331,18 @@ const ExercisePanel = ({ userId, kiLevel }: ExercisePanelProps) => {
                   </h4>
                   <p className="text-sm">{exercise.explanation}</p>
                 </div>
+                
+                {selectedAnswer !== exercise.correctAnswer && (
+                  <Button
+                    onClick={() => setShowStepByStep(true)}
+                    variant="outline"
+                    className="w-full gap-2"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Ver Solução Passo a Passo
+                  </Button>
+                )}
+                
                 <Button
                   onClick={generateExercise}
                   disabled={loading}
@@ -282,6 +365,18 @@ const ExercisePanel = ({ userId, kiLevel }: ExercisePanelProps) => {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Modal de Solução Passo a Passo */}
+      {exercise && (
+        <StepByStepModal
+          open={showStepByStep}
+          onOpenChange={setShowStepByStep}
+          question={exercise.question}
+          correctAnswer={exercise.options[exercise.correctAnswer]}
+          explanation={exercise.explanation}
+          detailedExplanation={`Vamos entender por que ${exercise.options[exercise.correctAnswer]} é a resposta correta:\n\n${exercise.explanation}\n\nEsta é a lógica completa para chegar à resposta. Pratique mais exercícios similares para dominar este conceito!`}
+        />
       )}
     </div>
   );
