@@ -5,10 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { User, Brain, Zap, Heart, Target, Settings, Moon, Sun, Volume2, Vibrate } from "lucide-react";
+import { User, Brain, Zap, Heart, Target, Settings, Moon, Sun, Volume2, Vibrate, Languages } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserProgress {
   ki_level: number;
@@ -18,6 +20,7 @@ interface UserProgress {
   sound_enabled: boolean;
   vibration_enabled: boolean;
   theme: string;
+  language: string;
 }
 
 interface ProfileDrawerProps {
@@ -27,10 +30,17 @@ interface ProfileDrawerProps {
 const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const { toast } = useToast();
+  const { t, i18n } = useTranslation();
 
   useEffect(() => {
     fetchProgress();
   }, [userId]);
+
+  useEffect(() => {
+    if (progress?.language) {
+      i18n.changeLanguage(progress.language);
+    }
+  }, [progress?.language]);
 
   const fetchProgress = async () => {
     const { data } = await supabase
@@ -57,6 +67,15 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
         description: "Tema alterado com sucesso",
       });
     }
+
+    if (field === 'language') {
+      i18n.changeLanguage(value);
+      localStorage.setItem('language', value);
+      toast({
+        title: t('common.success'),
+        description: t('profile.language'),
+      });
+    }
   };
 
   if (!progress) return null;
@@ -81,7 +100,7 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
-            Meu Perfil
+            {t('profile.title')}
           </SheetTitle>
         </SheetHeader>
 
@@ -93,7 +112,7 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
                 <Brain className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Nível KI</p>
+                <p className="text-sm text-muted-foreground">{t('profile.kiLevel')}</p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-xl font-bold">{progress.ki_level}</p>
                   <Badge variant="secondary" className={kiInfo.color}>
@@ -109,7 +128,7 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
             <Card className="p-4 bg-gradient-card">
               <div className="flex items-center gap-2 mb-2">
                 <Zap className="w-4 h-4 text-accent" />
-                <p className="text-xs text-muted-foreground">XP</p>
+                <p className="text-xs text-muted-foreground">{t('profile.xp')}</p>
               </div>
               <p className="text-2xl font-bold">{progress.xp}</p>
             </Card>
@@ -117,7 +136,7 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
             <Card className="p-4 bg-gradient-card">
               <div className="flex items-center gap-2 mb-2">
                 <Target className="w-4 h-4 text-secondary" />
-                <p className="text-xs text-muted-foreground">Sequência</p>
+                <p className="text-xs text-muted-foreground">{t('profile.streak')}</p>
               </div>
               <p className="text-2xl font-bold">{progress.daily_streak}</p>
             </Card>
@@ -126,7 +145,7 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
           <Card className="p-4 bg-gradient-card">
             <div className="flex items-center gap-2 mb-2">
               <Heart className="w-4 h-4 text-destructive" />
-              <p className="text-xs text-muted-foreground">Vidas</p>
+              <p className="text-xs text-muted-foreground">{t('profile.lives')}</p>
             </div>
             <div className="flex items-center gap-1">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -146,7 +165,7 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
           <div className="pt-4 border-t">
             <div className="flex items-center gap-2 mb-4">
               <Settings className="w-5 h-5" />
-              <h3 className="font-semibold">Configurações</h3>
+              <h3 className="font-semibold">{t('profile.settings')}</h3>
             </div>
 
             <div className="space-y-4">
@@ -154,7 +173,7 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {progress.theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                  <Label htmlFor="theme">Modo Escuro</Label>
+                  <Label htmlFor="theme">{t('profile.darkMode')}</Label>
                 </div>
                 <Switch
                   id="theme"
@@ -167,7 +186,7 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Volume2 className="w-4 h-4" />
-                  <Label htmlFor="sound">Sons</Label>
+                  <Label htmlFor="sound">{t('profile.sound')}</Label>
                 </div>
                 <Switch
                   id="sound"
@@ -180,13 +199,34 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Vibrate className="w-4 h-4" />
-                  <Label htmlFor="vibration">Vibração</Label>
+                  <Label htmlFor="vibration">{t('profile.vibration')}</Label>
                 </div>
                 <Switch
                   id="vibration"
                   checked={progress.vibration_enabled}
                   onCheckedChange={(checked) => updateSettings('vibration_enabled', checked)}
                 />
+              </div>
+
+              {/* Idioma */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Languages className="w-4 h-4" />
+                  <Label htmlFor="language">{t('profile.language')}</Label>
+                </div>
+                <Select
+                  value={progress.language || 'pt'}
+                  onValueChange={(value) => updateSettings('language', value)}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pt">{t('languages.pt')}</SelectItem>
+                    <SelectItem value="en">{t('languages.en')}</SelectItem>
+                    <SelectItem value="es">{t('languages.es')}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
