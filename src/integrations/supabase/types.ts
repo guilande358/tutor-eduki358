@@ -295,6 +295,7 @@ export type Database = {
           daily_streak: number | null
           id: string
           ki_level: number | null
+          language: string | null
           last_life_lost_at: string | null
           last_study_date: string | null
           lives: number | null
@@ -310,6 +311,7 @@ export type Database = {
           daily_streak?: number | null
           id?: string
           ki_level?: number | null
+          language?: string | null
           last_life_lost_at?: string | null
           last_study_date?: string | null
           lives?: number | null
@@ -325,6 +327,7 @@ export type Database = {
           daily_streak?: number | null
           id?: string
           ki_level?: number | null
+          language?: string | null
           last_life_lost_at?: string | null
           last_study_date?: string | null
           lives?: number | null
