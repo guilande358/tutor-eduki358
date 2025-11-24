@@ -1,0 +1,124 @@
+{
+  "translation": {
+    "common": {
+      "continue": "Continuar",
+      "cancel": "Cancelar",
+      "close": "Cerrar",
+      "save": "Guardar",
+      "delete": "Eliminar",
+      "edit": "Editar",
+      "loading": "Cargando...",
+      "error": "Error",
+      "success": "Éxito"
+    },
+    "nav": {
+      "home": "Inicio",
+      "exercises": "Ejercicios",
+      "tutor": "Tutor IA",
+      "achievements": "Logros",
+      "suggestions": "Sugerencias",
+      "mistakes": "Errores"
+    },
+    "profile": {
+      "title": "Perfil",
+      "kiLevel": "Nivel KI",
+      "xp": "XP",
+      "streak": "Racha",
+      "lives": "Vidas",
+      "settings": "Configuración",
+      "theme": "Tema",
+      "darkMode": "Modo Oscuro",
+      "sound": "Sonido",
+      "vibration": "Vibración",
+      "language": "Idioma"
+    },
+    "home": {
+      "welcomeBack": "¡Bienvenido de nuevo!",
+      "continueStudying": "Continuar Estudiando",
+      "newExercise": "Nuevo Ejercicio",
+      "dailyGoal": "Objetivo Diario",
+      "completed": "Completado"
+    },
+    "exercise": {
+      "title": "Ejercicios",
+      "selectSubject": "Seleccionar Materia",
+      "selectTopic": "Seleccionar Tema",
+      "selectDifficulty": "Seleccionar Dificultad",
+      "easy": "Fácil",
+      "medium": "Medio",
+      "hard": "Difícil",
+      "generate": "Generar Ejercicio",
+      "submit": "Enviar Respuesta",
+      "nextQuestion": "Siguiente Pregunta",
+      "viewSolution": "Ver Solución Paso a Paso",
+      "correct": "¡Correcto!",
+      "incorrect": "Incorrecto",
+      "completed": "¡Ejercicio Completado!",
+      "score": "Puntuación"
+    },
+    "tutor": {
+      "title": "Tutor IA",
+      "newConversation": "Nueva Conversación",
+      "conversations": "Conversaciones",
+      "typeMessage": "Escribe tu pregunta...",
+      "send": "Enviar",
+      "thinking": "Pensando...",
+      "expand": "Expandir",
+      "collapse": "Contraer"
+    },
+    "achievements": {
+      "title": "Logros",
+      "earned": "Conseguido",
+      "locked": "Bloqueado",
+      "noAchievements": "Sin logros aún"
+    },
+    "suggestions": {
+      "title": "Sugerencias",
+      "priority": "Prioridad",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja",
+      "complete": "Completar",
+      "completed": "Completado"
+    },
+    "mistakes": {
+      "title": "Mis Errores",
+      "review": "Revisar",
+      "practice": "Practicar",
+      "noMistakes": "Sin errores registrados"
+    },
+    "lives": {
+      "title": "Vidas",
+      "nextLife": "Próxima vida en",
+      "watchVideo": "Ver Video",
+      "microLesson": "Micro-lección",
+      "rewardChoice": "Elige tu recompensa",
+      "chooseLife": "+1 Vida",
+      "chooseXP": "+50 XP"
+    },
+    "microLesson": {
+      "title": "Micro-lección",
+      "selectSubject": "Selecciona la Materia",
+      "selectTopic": "Selecciona el Tema",
+      "start": "Iniciar",
+      "progress": "Progreso",
+      "correctAnswers": "Respuestas Correctas",
+      "completed": "¡Micro-lección Completada!",
+      "reward": "¡Ganaste +1 Vida!"
+    },
+    "auth": {
+      "signIn": "Iniciar Sesión",
+      "signUp": "Crear Cuenta",
+      "email": "Correo",
+      "password": "Contraseña",
+      "fullName": "Nombre Completo",
+      "welcome": "Bienvenido a EduKI",
+      "subtitle": "Tu plataforma de aprendizaje inteligente"
+    },
+    "languages": {
+      "pt": "Português",
+      "en": "English",
+      "es": "Español"
+    }
+  }
+}
