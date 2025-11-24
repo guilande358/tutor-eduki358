@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import MicroLessonPanel from "./MicroLessonPanel";
+import despia from 'despia-native';
 
 interface LivesTimerProps {
   userId: string;
@@ -20,13 +21,69 @@ interface LivesTimerProps {
   kiLevel: number;
 }
 
+const DAILY_AD_LIMIT = 10;
+const AD_LIMIT_STORAGE_KEY = 'eduKi_daily_ad_count';
+const AD_LIMIT_DATE_KEY = 'eduKi_daily_ad_date';
+
 const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimerProps) => {
   const [timeUntilNextLife, setTimeUntilNextLife] = useState<string>("");
   const [lastLifeLost, setLastLifeLost] = useState<Date | null>(null);
   const [showRewardDialog, setShowRewardDialog] = useState(false);
   const [isLoadingAd, setIsLoadingAd] = useState(false);
   const [showMicroLesson, setShowMicroLesson] = useState(false);
+  const [dailyAdCount, setDailyAdCount] = useState(0);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Setup global callback for Despia rewarded ads
+    (window as any).updateRewardedStatus = (status: string) => {
+      if (navigator.userAgent.includes("despia")) {
+        if (status === 'true') {
+          setShowRewardDialog(true);
+          incrementAdCount();
+        } else {
+          toast({
+            title: "Anúncio não completado",
+            description: "Você precisa assistir o anúncio completo para ganhar a recompensa",
+            variant: "destructive",
+          });
+        }
+        setIsLoadingAd(false);
+      }
+    };
+
+    // Check and reset daily ad count
+    checkDailyAdLimit();
+
+    return () => {
+      delete (window as any).updateRewardedStatus;
+    };
+  }, []);
+
+  const checkDailyAdLimit = () => {
+    const today = new Date().toDateString();
+    const lastDate = localStorage.getItem(AD_LIMIT_DATE_KEY);
+    
+    if (lastDate !== today) {
+      // Reset count for new day
+      localStorage.setItem(AD_LIMIT_DATE_KEY, today);
+      localStorage.setItem(AD_LIMIT_STORAGE_KEY, '0');
+      setDailyAdCount(0);
+    } else {
+      const count = parseInt(localStorage.getItem(AD_LIMIT_STORAGE_KEY) || '0');
+      setDailyAdCount(count);
+    }
+  };
+
+  const incrementAdCount = () => {
+    const newCount = dailyAdCount + 1;
+    setDailyAdCount(newCount);
+    localStorage.setItem(AD_LIMIT_STORAGE_KEY, newCount.toString());
+  };
+
+  const canWatchAd = () => {
+    return dailyAdCount < DAILY_AD_LIMIT;
+  };
 
   useEffect(() => {
     fetchLastLifeLost();
@@ -88,6 +145,16 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
   };
 
   const watchAdForLife = async () => {
+    // Check daily limit
+    if (!canWatchAd()) {
+      toast({
+        title: "Limite diário atingido",
+        description: `Você já assistiu ${DAILY_AD_LIMIT} anúncios hoje. Tente novamente amanhã!`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoadingAd(true);
     
     toast({
@@ -96,8 +163,15 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     });
 
     try {
-      // Load AdMob Rewarded Ad
-      if ((window as any).adsbygoogle) {
+      // Check if running in Despia native environment
+      const isDespiaEnvironment = navigator.userAgent.includes("despia");
+      
+      if (isDespiaEnvironment) {
+        // Use Despia rewarded ad
+        despia("displayrewardedad://");
+        // The global updateRewardedStatus callback will handle the result
+      } else if ((window as any).adsbygoogle) {
+        // Fallback to AdMob for web environment
         const adBreak = (window as any).adBreak;
         const adConfig = (window as any).adConfig;
         
@@ -118,10 +192,12 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
             },
             afterAd: () => {
               setShowRewardDialog(true);
+              incrementAdCount();
             },
             adBreakDone: (placementInfo: any) => {
               if (placementInfo.breakStatus === 'viewed') {
                 setShowRewardDialog(true);
+                incrementAdCount();
               } else {
                 toast({
                   title: "Anúncio não completado",
@@ -136,7 +212,7 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
           throw new Error("AdMob não configurado");
         }
       } else {
-        throw new Error("AdMob não disponível");
+        throw new Error("Nenhum sistema de anúncios disponível");
       }
     } catch (error) {
       console.error("Erro ao carregar anúncio:", error);
@@ -255,13 +331,18 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
           <p className="text-sm text-muted-foreground">
             Recupere vidas rapidamente:
           </p>
+          {!canWatchAd() && (
+            <p className="text-xs text-destructive">
+              Limite diário de anúncios atingido ({dailyAdCount}/{DAILY_AD_LIMIT})
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <Button
               onClick={watchAdForLife}
               variant="outline"
               size="sm"
               className="gap-2"
-              disabled={isLoadingAd}
+              disabled={isLoadingAd || !canWatchAd()}
             >
               <PlayCircle className="w-4 h-4" />
               {isLoadingAd ? "Carregando..." : "Assistir Vídeo"}
