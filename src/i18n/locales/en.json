@@ -1,0 +1,124 @@
+{
+  "translation": {
+    "common": {
+      "continue": "Continue",
+      "cancel": "Cancel",
+      "close": "Close",
+      "save": "Save",
+      "delete": "Delete",
+      "edit": "Edit",
+      "loading": "Loading...",
+      "error": "Error",
+      "success": "Success"
+    },
+    "nav": {
+      "home": "Home",
+      "exercises": "Exercises",
+      "tutor": "AI Tutor",
+      "achievements": "Achievements",
+      "suggestions": "Suggestions",
+      "mistakes": "Mistakes"
+    },
+    "profile": {
+      "title": "Profile",
+      "kiLevel": "KI Level",
+      "xp": "XP",
+      "streak": "Streak",
+      "lives": "Lives",
+      "settings": "Settings",
+      "theme": "Theme",
+      "darkMode": "Dark Mode",
+      "sound": "Sound",
+      "vibration": "Vibration",
+      "language": "Language"
+    },
+    "home": {
+      "welcomeBack": "Welcome back!",
+      "continueStudying": "Continue Studying",
+      "newExercise": "New Exercise",
+      "dailyGoal": "Daily Goal",
+      "completed": "Completed"
+    },
+    "exercise": {
+      "title": "Exercises",
+      "selectSubject": "Select Subject",
+      "selectTopic": "Select Topic",
+      "selectDifficulty": "Select Difficulty",
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard",
+      "generate": "Generate Exercise",
+      "submit": "Submit Answer",
+      "nextQuestion": "Next Question",
+      "viewSolution": "View Step-by-Step Solution",
+      "correct": "Correct!",
+      "incorrect": "Incorrect",
+      "completed": "Exercise Completed!",
+      "score": "Score"
+    },
+    "tutor": {
+      "title": "AI Tutor",
+      "newConversation": "New Conversation",
+      "conversations": "Conversations",
+      "typeMessage": "Type your question...",
+      "send": "Send",
+      "thinking": "Thinking...",
+      "expand": "Expand",
+      "collapse": "Collapse"
+    },
+    "achievements": {
+      "title": "Achievements",
+      "earned": "Earned",
+      "locked": "Locked",
+      "noAchievements": "No achievements yet"
+    },
+    "suggestions": {
+      "title": "Suggestions",
+      "priority": "Priority",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "complete": "Complete",
+      "completed": "Completed"
+    },
+    "mistakes": {
+      "title": "My Mistakes",
+      "review": "Review",
+      "practice": "Practice",
+      "noMistakes": "No mistakes recorded"
+    },
+    "lives": {
+      "title": "Lives",
+      "nextLife": "Next life in",
+      "watchVideo": "Watch Video",
+      "microLesson": "Micro-lesson",
+      "rewardChoice": "Choose your reward",
+      "chooseLife": "+1 Life",
+      "chooseXP": "+50 XP"
+    },
+    "microLesson": {
+      "title": "Micro-lesson",
+      "selectSubject": "Select Subject",
+      "selectTopic": "Select Topic",
+      "start": "Start",
+      "progress": "Progress",
+      "correctAnswers": "Correct Answers",
+      "completed": "Micro-lesson Completed!",
+      "reward": "You earned +1 Life!"
+    },
+    "auth": {
+      "signIn": "Sign In",
+      "signUp": "Sign Up",
+      "email": "Email",
+      "password": "Password",
+      "fullName": "Full Name",
+      "welcome": "Welcome to EduKI",
+      "subtitle": "Your intelligent learning platform"
+    },
+    "languages": {
+      "pt": "Português",
+      "en": "English",
+      "es": "Español"
+    }
+  }
+}
