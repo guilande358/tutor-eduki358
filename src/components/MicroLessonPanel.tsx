@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Trophy, X, Check, Heart, BookOpen } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import MathRenderer from "@/components/MathRenderer";
 import { playCorrectSound, playWrongSound, vibrateCorrect, vibrateWrong } from "@/utils/sounds";
 
 interface Exercise {
@@ -299,7 +300,7 @@ const MicroLessonPanel = ({ userId, kiLevel, onClose, onComplete }: MicroLessonP
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="p-4 bg-muted rounded-lg">
-              <p className="text-lg font-medium">{exercise.question}</p>
+              <MathRenderer content={exercise.question} className="text-lg font-medium" />
             </div>
 
             <RadioGroup
@@ -326,7 +327,7 @@ const MicroLessonPanel = ({ userId, kiLevel, onClose, onComplete }: MicroLessonP
                     htmlFor={`option-${index}`}
                     className="flex-1 cursor-pointer flex items-center justify-between"
                   >
-                    <span>{option}</span>
+                    <MathRenderer content={option} />
                     {showResult && index === exercise.correctAnswer && (
                       <Check className="w-5 h-5 text-secondary" />
                     )}
@@ -360,7 +361,7 @@ const MicroLessonPanel = ({ userId, kiLevel, onClose, onComplete }: MicroLessonP
                       ? "Resposta Correta! 🎉"
                       : "Resposta Incorreta 📚"}
                   </h4>
-                  <p className="text-sm">{exercise.explanation}</p>
+                  <MathRenderer content={exercise.explanation} className="text-sm" />
                 </div>
                 
                 {correctCount < REQUIRED_CORRECT && (

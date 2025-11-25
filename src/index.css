@@ -115,3 +115,60 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Utilitários personalizados */
+@layer utilities {
+  .bg-gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .bg-gradient-success {
+    background: var(--gradient-success);
+  }
+  
+  .shadow-elegant {
+    box-shadow: var(--shadow-md);
+  }
+  
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+}
+
+/* KaTeX styling overrides para fórmulas matemáticas */
+.math-renderer .katex {
+  font-size: 1.1em !important;
+  color: inherit !important;
+}
+
+.math-renderer .katex-display {
+  margin: 0.5em 0 !important;
+}
+
+.math-renderer .katex .base {
+  color: inherit !important;
+}
+
+/* Melhor renderização mobile para matemática */
+@media (max-width: 640px) {
+  .math-renderer .katex {
+    font-size: 1em !important;
+  }
+}
+
+/* Garantir legibilidade em modo claro e escuro */
+.dark .math-renderer .katex,
+.dark .math-renderer .katex .base,
+.dark .math-renderer .katex-html {
+  color: hsl(var(--foreground)) !important;
+}
+
+.math-renderer .katex,
+.math-renderer .katex .base,
+.math-renderer .katex-html {
+  color: hsl(var(--foreground)) !important;
+}

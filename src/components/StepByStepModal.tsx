@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { BookOpen, Lightbulb, CheckCircle2 } from "lucide-react";
+import MathRenderer from "@/components/MathRenderer";
 
 interface StepByStepModalProps {
   open: boolean;
@@ -42,7 +43,7 @@ const StepByStepModal = ({
           {/* Questão */}
           <Card className="p-4 bg-muted/50">
             <h3 className="font-semibold mb-2">Questão:</h3>
-            <p className="text-sm">{question}</p>
+            <MathRenderer content={question} className="text-sm" />
           </Card>
 
           {/* Resposta Correta */}
@@ -51,7 +52,7 @@ const StepByStepModal = ({
               <CheckCircle2 className="w-5 h-5 text-secondary mt-0.5" />
               <div>
                 <h3 className="font-semibold mb-1">Resposta Correta:</h3>
-                <p className="text-sm">{correctAnswer}</p>
+                <MathRenderer content={correctAnswer} className="text-sm" />
               </div>
             </div>
           </Card>
@@ -62,7 +63,7 @@ const StepByStepModal = ({
               <Lightbulb className="w-5 h-5 text-primary mt-0.5" />
               <div>
                 <h3 className="font-semibold mb-2">Por que esta é a resposta?</h3>
-                <p className="text-sm">{explanation}</p>
+                <MathRenderer content={explanation} className="text-sm" />
               </div>
             </div>
           </Card>
@@ -73,9 +74,7 @@ const StepByStepModal = ({
               <h3 className="font-semibold mb-3">Raciocínio Completo:</h3>
               <div className="space-y-2 text-sm">
                 {detailedExplanation.split('\n').map((paragraph, index) => (
-                  <p key={index} className="leading-relaxed">
-                    {paragraph}
-                  </p>
+                  <MathRenderer key={index} content={paragraph} className="leading-relaxed" />
                 ))}
               </div>
             </Card>

@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/use-toast";
 import { Send, Bot, User, Loader2, Paperclip, X, FileImage, Maximize2, Minimize2 } from "lucide-react";
 import ConversationDrawer from "@/components/ConversationDrawer";
+import MathRenderer from "@/components/MathRenderer";
 
 interface Message {
   role: "user" | "assistant";
@@ -455,7 +456,7 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
                     : "bg-muted"
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                <MathRenderer content={message.content} className="text-sm whitespace-pre-wrap" />
                 {message.attachments && message.attachments.length > 0 && (
                   <div className="mt-2 space-y-2">
                     {message.attachments.map((attachment) => (
