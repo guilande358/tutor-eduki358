@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Trophy, X, Check, Sparkles, BookOpen } from "lucide-react";
 import StepByStepModal from "./StepByStepModal";
+import MathRenderer from "@/components/MathRenderer";
 import { playCorrectSound, playWrongSound, vibrateCorrect, vibrateWrong } from "@/utils/sounds";
 
 interface Exercise {
@@ -268,7 +269,7 @@ const ExercisePanel = ({ userId, kiLevel }: ExercisePanelProps) => {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="p-4 bg-muted rounded-lg">
-              <p className="text-lg font-medium">{exercise.question}</p>
+              <MathRenderer content={exercise.question} className="text-lg font-medium" />
             </div>
 
             <RadioGroup
@@ -295,7 +296,7 @@ const ExercisePanel = ({ userId, kiLevel }: ExercisePanelProps) => {
                     htmlFor={`option-${index}`}
                     className="flex-1 cursor-pointer flex items-center justify-between"
                   >
-                    <span>{option}</span>
+                    <MathRenderer content={option} />
                     {showResult && index === exercise.correctAnswer && (
                       <Check className="w-5 h-5 text-secondary" />
                     )}
@@ -329,7 +330,7 @@ const ExercisePanel = ({ userId, kiLevel }: ExercisePanelProps) => {
                       ? "Resposta Correta! 🎉"
                       : "Resposta Incorreta 📚"}
                   </h4>
-                  <p className="text-sm">{exercise.explanation}</p>
+                  <MathRenderer content={exercise.explanation} className="text-sm" />
                 </div>
                 
                 {selectedAnswer !== exercise.correctAnswer && (

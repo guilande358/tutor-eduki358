@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Trash2, RotateCcw, Sparkles } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import MathRenderer from "@/components/MathRenderer";
 
 interface WrongAnswer {
   id: string;
@@ -168,7 +169,7 @@ const WrongAnswersPanel = ({ userId }: WrongAnswersPanelProps) => {
 
                 {/* Questão */}
                 <div className="p-4 bg-muted/50 rounded-lg">
-                  <p className="font-medium mb-3">{wa.question}</p>
+                  <MathRenderer content={wa.question} className="font-medium mb-3" />
                   <div className="space-y-2">
                     {wa.options.map((option, index) => (
                       <div
@@ -181,7 +182,7 @@ const WrongAnswersPanel = ({ userId }: WrongAnswersPanelProps) => {
                             : "border-border"
                         }`}
                       >
-                        {option}
+                        <MathRenderer content={option} />
                         {index === wa.correct_answer && (
                           <span className="ml-2 text-secondary font-medium">✓ Correto</span>
                         )}
@@ -196,7 +197,7 @@ const WrongAnswersPanel = ({ userId }: WrongAnswersPanelProps) => {
                 {/* Explicação */}
                 <div className="p-4 bg-primary/5 border-2 border-primary/20 rounded-lg">
                   <p className="text-sm font-medium mb-1">Explicação:</p>
-                  <p className="text-sm text-muted-foreground">{wa.explanation}</p>
+                  <MathRenderer content={wa.explanation} className="text-sm text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
