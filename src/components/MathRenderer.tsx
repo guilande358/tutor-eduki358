@@ -106,18 +106,39 @@ const MathRenderer = ({ content, className = "" }: MathRendererProps) => {
       // Renderizar cada parte
       parts.forEach((part) => {
         if (part.isMath) {
-          const span = document.createElement("span");
-          try {
-            katex.render(part.content, span, {
-              displayMode: part.displayMode,
-              throwOnError: false,
-              strict: false,
-              trust: true,
-            });
-          } catch (error) {
-            span.textContent = part.content;
+          if (part.displayMode) {
+            // Criar card estilo Notion para display mode
+            const card = document.createElement("div");
+            card.className = "notion-math-card";
+            
+            const mathContainer = document.createElement("div");
+            try {
+              katex.render(part.content, mathContainer, {
+                displayMode: true,
+                throwOnError: false,
+                strict: false,
+                trust: true,
+              });
+            } catch (error) {
+              mathContainer.textContent = part.content;
+            }
+            card.appendChild(mathContainer);
+            container.appendChild(card);
+          } else {
+            // Inline mode sem card
+            const span = document.createElement("span");
+            try {
+              katex.render(part.content, span, {
+                displayMode: false,
+                throwOnError: false,
+                strict: false,
+                trust: true,
+              });
+            } catch (error) {
+              span.textContent = part.content;
+            }
+            container.appendChild(span);
           }
-          container.appendChild(span);
         } else {
           // Tentar detectar matemática em texto normal
           const textParts = part.content.split(/([a-zA-Z0-9\s\+\-\*\/\^\(\)_{}=√∛∑∫∞πα βΔ²³]+)/g);
