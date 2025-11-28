@@ -12,14 +12,14 @@
   "lang": "pt-BR",
   "icons": [
     {
-      "src": "/icon-192x192.jpg",
-      "type": "image/jpeg",
+      "src": "/icon-192x192.png",
+      "type": "image/png",
       "sizes": "256x256",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512x512.jpg",
-      "type": "image/jpeg",
+      "src": "/icon-512x512.png",
+      "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"
     }
@@ -34,7 +34,7 @@
       "url": "/?action=exercise",
       "icons": [
         {
-          "src": "/icon-192x192.jpg",
+          "src": "/icon-192x192.png",
           "sizes": "256x256"
         }
       ]
@@ -46,7 +46,7 @@
       "url": "/?action=chat",
       "icons": [
         {
-          "src": "/icon-192x192.jpg",
+          "src": "/icon-192x192.png",
           "sizes": "256x256"
         }
       ]
