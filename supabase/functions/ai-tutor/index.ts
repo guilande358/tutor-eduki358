@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +13,19 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, kiLevel, hasAttachments } = await req.json();
+    // Validação de input
+    const requestSchema = z.object({
+      messages: z.array(z.object({
+        role: z.string(),
+        content: z.string().max(10000)
+      })).min(1).max(100),
+      kiLevel: z.number().min(0).max(100),
+      hasAttachments: z.boolean().optional()
+    });
+
+    const requestData = await req.json();
+    const { messages, kiLevel, hasAttachments } = requestSchema.parse(requestData);
+    
     console.log('Tutor AI request:', { messagesCount: messages.length, kiLevel, hasAttachments });
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');

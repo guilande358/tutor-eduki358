@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +13,17 @@ serve(async (req) => {
   }
 
   try {
-    const { subject, topic, kiLevel, difficulty } = await req.json();
+    // Validação de input
+    const requestSchema = z.object({
+      subject: z.string().min(1).max(100),
+      topic: z.string().min(1).max(200),
+      kiLevel: z.number().min(0).max(100),
+      difficulty: z.enum(['facil', 'medio', 'dificil'])
+    });
+
+    const requestData = await req.json();
+    const { subject, topic, kiLevel, difficulty } = requestSchema.parse(requestData);
+    
     console.log('Generate exercise request:', { subject, topic, kiLevel, difficulty });
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
