@@ -12,7 +12,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import MicroLessonPanel from "./MicroLessonPanel";
-import despia from 'despia-native';
+
+// Unity Ads types
+declare global {
+  interface Window {
+    UnityAds: {
+      init: (config: { gameId: string; debug: boolean }) => void;
+      load: (placementId: string) => void;
+      isReady: (placementId: string) => boolean;
+      show: (placementId: string, callbacks: {
+        onStart?: () => void;
+        onComplete?: (reward: boolean) => void;
+        onError?: (error: any) => void;
+        onClose?: () => void;
+      }) => void;
+    };
+  }
+}
 
 interface LivesTimerProps {
   userId: string;
@@ -24,6 +40,8 @@ interface LivesTimerProps {
 const DAILY_AD_LIMIT = 10;
 const AD_LIMIT_STORAGE_KEY = 'eduKi_daily_ad_count';
 const AD_LIMIT_DATE_KEY = 'eduKi_daily_ad_date';
+const UNITY_GAME_ID = '5993995';
+const UNITY_PLACEMENT_ID = 'Rewarded_Android';
 
 const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimerProps) => {
   const [timeUntilNextLife, setTimeUntilNextLife] = useState<string>("");
@@ -32,32 +50,37 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
   const [isLoadingAd, setIsLoadingAd] = useState(false);
   const [showMicroLesson, setShowMicroLesson] = useState(false);
   const [dailyAdCount, setDailyAdCount] = useState(0);
+  const [adReady, setAdReady] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Setup global callback for Despia rewarded ads
-    (window as any).updateRewardedStatus = (status: string) => {
-      if (navigator.userAgent.includes("despia")) {
-        if (status === 'true') {
-          setShowRewardDialog(true);
-          incrementAdCount();
-        } else {
-          toast({
-            title: "Anúncio não completado",
-            description: "Você precisa assistir o anúncio completo para ganhar a recompensa",
-            variant: "destructive",
-          });
-        }
-        setIsLoadingAd(false);
+    // Initialize Unity Ads
+    if (window.UnityAds) {
+      try {
+        window.UnityAds.init({
+          gameId: UNITY_GAME_ID,
+          debug: true, // Set to false in production
+        });
+        
+        // Preload the rewarded ad
+        window.UnityAds.load(UNITY_PLACEMENT_ID);
+        
+        // Check if ad is ready
+        const checkAdReady = setInterval(() => {
+          if (window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
+            setAdReady(true);
+            clearInterval(checkAdReady);
+          }
+        }, 1000);
+
+        return () => clearInterval(checkAdReady);
+      } catch (error) {
+        console.error("Erro ao inicializar Unity Ads:", error);
       }
-    };
+    }
 
     // Check and reset daily ad count
     checkDailyAdLimit();
-
-    return () => {
-      delete (window as any).updateRewardedStatus;
-    };
   }, []);
 
   const checkDailyAdLimit = () => {
@@ -155,73 +178,75 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
       return;
     }
 
+    // Check if Unity Ads is available and ready
+    if (!window.UnityAds) {
+      toast({
+        title: "Anúncios não disponíveis",
+        description: "Sistema de anúncios não carregado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
+      toast({
+        title: "Carregando vídeo...",
+        description: "Tente novamente em alguns segundos",
+      });
+      // Try to preload again
+      window.UnityAds.load(UNITY_PLACEMENT_ID);
+      return;
+    }
+
     setIsLoadingAd(true);
-    
-    toast({
-      title: "Carregando anúncio...",
-      description: "Por favor, aguarde",
-    });
 
     try {
-      // Check if running in Despia native environment
-      const isDespiaEnvironment = navigator.userAgent.includes("despia");
-      
-      if (isDespiaEnvironment) {
-        // Use Despia rewarded ad
-        despia("displayrewardedad://");
-        // The global updateRewardedStatus callback will handle the result
-      } else if ((window as any).adsbygoogle) {
-        // Fallback to AdMob for web environment
-        const adBreak = (window as any).adBreak;
-        const adConfig = (window as any).adConfig;
-        
-        if (adBreak && adConfig) {
-          await adConfig({
-            preloadAdBreaks: 'on',
-            sound: 'on',
+      window.UnityAds.show(UNITY_PLACEMENT_ID, {
+        onStart: () => {
+          toast({
+            title: "Anúncio iniciado",
+            description: "Assista até o final para escolher sua recompensa!",
           });
-
-          await adBreak({
-            type: 'reward',
-            name: 'reward-ad',
-            beforeAd: () => {
-              toast({
-                title: "Anúncio iniciado",
-                description: "Assista até o final para escolher sua recompensa!",
-              });
-            },
-            afterAd: () => {
-              setShowRewardDialog(true);
-              incrementAdCount();
-            },
-            adBreakDone: (placementInfo: any) => {
-              if (placementInfo.breakStatus === 'viewed') {
-                setShowRewardDialog(true);
-                incrementAdCount();
-              } else {
-                toast({
-                  title: "Anúncio não completado",
-                  description: "Você precisa assistir o anúncio completo para ganhar a recompensa",
-                  variant: "destructive",
-                });
-              }
-              setIsLoadingAd(false);
-            },
+        },
+        onComplete: (reward: boolean) => {
+          setIsLoadingAd(false);
+          if (reward) {
+            // User watched the ad to completion
+            setShowRewardDialog(true);
+            incrementAdCount();
+            // Preload next ad
+            window.UnityAds.load(UNITY_PLACEMENT_ID);
+          } else {
+            toast({
+              title: "Anúncio não completado",
+              description: "Você precisa assistir o anúncio completo para ganhar a recompensa",
+              variant: "destructive",
+            });
+          }
+        },
+        onError: (error: any) => {
+          console.error("Erro no Unity Ads:", error);
+          setIsLoadingAd(false);
+          toast({
+            title: "Vídeo indisponível",
+            description: "Tente novamente em breve",
+            variant: "destructive",
           });
-        } else {
-          throw new Error("AdMob não configurado");
-        }
-      } else {
-        throw new Error("Nenhum sistema de anúncios disponível");
-      }
+          // Try to preload again
+          window.UnityAds.load(UNITY_PLACEMENT_ID);
+        },
+        onClose: () => {
+          setIsLoadingAd(false);
+        },
+      });
     } catch (error) {
-      console.error("Erro ao carregar anúncio:", error);
+      console.error("Erro ao mostrar anúncio Unity:", error);
+      setIsLoadingAd(false);
       toast({
         title: "Erro ao carregar anúncio",
         description: "Tente novamente mais tarde",
         variant: "destructive",
       });
-      setIsLoadingAd(false);
     }
   };
 
