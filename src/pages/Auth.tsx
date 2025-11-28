@@ -91,7 +91,7 @@ const Auth = () => {
             </div>
             <Sparkles className="w-6 h-6 text-accent animate-pulse" />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
             EduKI
           </h1>
           <p className="text-muted-foreground">

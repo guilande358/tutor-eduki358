@@ -104,7 +104,7 @@ const Index = () => {
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   EduKI
                 </h1>
                 <p className="text-xs text-muted-foreground">Seu tutor de IA</p>
