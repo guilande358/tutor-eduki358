@@ -1,8 +1,25 @@
 // Funções para sons e vibração usando Web Audio API
 
-const audioContext = typeof window !== 'undefined' ? new (window.AudioContext || (window as any).webkitAudioContext)() : null;
+// Lazy initialization do AudioContext para evitar problemas e memory leaks
+let audioContext: AudioContext | null = null;
+
+const getAudioContext = (): AudioContext | null => {
+  if (typeof window === 'undefined') return null;
+  
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  
+  // Retomar se estiver suspenso (política de autoplay)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+  
+  return audioContext;
+};
 
 export const playCorrectSound = () => {
+  const audioContext = getAudioContext();
   if (!audioContext) return;
   
   const oscillator = audioContext.createOscillator();
@@ -22,6 +39,7 @@ export const playCorrectSound = () => {
 };
 
 export const playWrongSound = () => {
+  const audioContext = getAudioContext();
   if (!audioContext) return;
   
   const oscillator = audioContext.createOscillator();
