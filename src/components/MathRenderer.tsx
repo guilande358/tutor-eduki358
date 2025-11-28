@@ -141,11 +141,11 @@ const MathRenderer = ({ content, className = "" }: MathRendererProps) => {
           }
         } else {
           // Tentar detectar matemática em texto normal
-          const textParts = part.content.split(/([a-zA-Z0-9\s\+\-\*\/\^\(\)_{}=√∛∑∫∞πα βΔ²³]+)/g);
+          const textParts = part.content.split(/([a-zA-Z0-9\s\+\-\*\/\^\(\)_{}=√∛∑∫∞παβΔ²³]+)/g);
           
           textParts.forEach((textPart) => {
             // Verificar se contém símbolos matemáticos
-            const hasMathSymbols = /[\^_{}=√∛∑∫∞πα βΔ²³]/.test(textPart);
+            const hasMathSymbols = /[\^_{}=√∛∑∫∞παβΔ²³]/.test(textPart);
             
             if (hasMathSymbols && textPart.trim()) {
               const span = document.createElement("span");
