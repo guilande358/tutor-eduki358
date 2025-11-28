@@ -1,0 +1,55 @@
+{
+  "name": "EduKI - Seu Tutor de IA Inteligente",
+  "short_name": "EduKI",
+  "description": "Aprenda de forma inteligente com IA adaptativa. EduKI é sua plataforma de aprendizado personalizada com exercícios, gamificação e acompanhamento de progresso.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#6366f1",
+  "dir": "ltr",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "256x256",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Novo Exercício",
+      "short_name": "Exercício",
+      "description": "Iniciar um novo exercício",
+      "url": "/?action=exercise",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "256x256"
+        }
+      ]
+    },
+    {
+      "name": "Chat com IA",
+      "short_name": "Chat",
+      "description": "Conversar com o tutor de IA",
+      "url": "/?action=chat",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "256x256"
+        }
+      ]
+    }
+  ]
+}
