@@ -23,6 +23,8 @@ const motivationalPhrases = [
 
 const HomePanel = ({ userId, onStartExercise, onContinueStudying }: HomePanelProps) => {
   const [dailyGoal, setDailyGoal] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [phrase] = useState(() => 
     motivationalPhrases[Math.floor(Math.random() * motivationalPhrases.length)]
   );
@@ -32,18 +34,29 @@ const HomePanel = ({ userId, onStartExercise, onContinueStudying }: HomePanelPro
   }, [userId]);
 
   const fetchDailyGoal = async () => {
-    // Criar meta do dia se não existir
-    await supabase.rpc('create_daily_goal_if_not_exists', { p_user_id: userId });
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Criar meta do dia se não existir
+      await supabase.rpc('create_daily_goal_if_not_exists', { p_user_id: userId });
 
-    // Buscar meta do dia
-    const { data } = await supabase
-      .from('daily_goals')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('goal_date', new Date().toISOString().split('T')[0])
-      .single();
+      // Buscar meta do dia
+      const { data, error: fetchError } = await supabase
+        .from('daily_goals')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('goal_date', new Date().toISOString().split('T')[0])
+        .maybeSingle();
 
-    if (data) setDailyGoal(data);
+      if (fetchError) throw fetchError;
+      if (data) setDailyGoal(data);
+    } catch (err) {
+      console.error('Erro ao buscar meta diária:', err);
+      setError('Não foi possível carregar a meta diária');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const progressPercentage = dailyGoal 
@@ -88,7 +101,19 @@ const HomePanel = ({ userId, onStartExercise, onContinueStudying }: HomePanelPro
       </Card>
 
       {/* Meta Diária */}
-      {dailyGoal && (
+      {loading ? (
+        <Card className="p-6 bg-gradient-card shadow-md">
+          <div className="space-y-4 animate-pulse">
+            <div className="h-6 bg-muted rounded w-1/3" />
+            <div className="h-3 bg-muted rounded w-full" />
+            <div className="h-4 bg-muted rounded w-1/2" />
+          </div>
+        </Card>
+      ) : error ? (
+        <Card className="p-6 bg-destructive/10 border-destructive/20 shadow-md">
+          <p className="text-sm text-destructive text-center">{error}</p>
+        </Card>
+      ) : dailyGoal && (
         <Card className="p-6 bg-gradient-card shadow-md">
           <div className="space-y-4">
             <div className="flex items-center justify-between">

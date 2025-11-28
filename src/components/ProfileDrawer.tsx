@@ -29,6 +29,7 @@ interface ProfileDrawerProps {
 
 const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
   const [progress, setProgress] = useState<UserProgress | null>(null);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { t, i18n } = useTranslation();
 
@@ -43,13 +44,26 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
   }, [progress?.language]);
 
   const fetchProgress = async () => {
-    const { data } = await supabase
-      .from('user_progress')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    if (data) setProgress(data);
+      if (error) throw error;
+      if (data) setProgress(data);
+    } catch (err) {
+      console.error('Erro ao buscar progresso:', err);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar seu progresso",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateSettings = async (field: string, value: any) => {
@@ -78,8 +92,6 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
     }
   };
 
-  if (!progress) return null;
-
   const getKILevel = (ki: number) => {
     if (ki <= 20) return { label: "Iniciante", color: "bg-muted" };
     if (ki <= 50) return { label: "Intermediário", color: "bg-primary" };
@@ -87,7 +99,7 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
     return { label: "Mestre", color: "bg-accent" };
   };
 
-  const kiInfo = getKILevel(progress.ki_level);
+  const kiInfo = progress ? getKILevel(progress.ki_level) : { label: "Iniciante", color: "bg-muted" };
 
   return (
     <Sheet>
@@ -105,6 +117,21 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
         </SheetHeader>
 
         <div className="space-y-6 mt-6">
+          {loading ? (
+            <div className="space-y-4">
+              <div className="h-24 bg-muted rounded-lg animate-pulse" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-20 bg-muted rounded-lg animate-pulse" />
+                <div className="h-20 bg-muted rounded-lg animate-pulse" />
+              </div>
+              <div className="h-20 bg-muted rounded-lg animate-pulse" />
+            </div>
+          ) : !progress ? (
+            <div className="text-center text-muted-foreground py-8">
+              <p>Não foi possível carregar os dados</p>
+            </div>
+          ) : (
+            <>
           {/* Stats Cards */}
           <Card className="p-4 bg-gradient-card">
             <div className="flex items-center gap-3 mb-3">
@@ -230,6 +257,8 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>
