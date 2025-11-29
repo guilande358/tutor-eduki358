@@ -12,8 +12,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import MicroLessonPanel from "./MicroLessonPanel";
+import { Capacitor } from "@capacitor/core";
 
-// Unity Ads types
+// Unity Ads types para Web
 declare global {
   interface Window {
     UnityAds: {
@@ -52,36 +53,75 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
   const [dailyAdCount, setDailyAdCount] = useState(0);
   const [adReady, setAdReady] = useState(false);
   const { toast } = useToast();
+  const isNative = Capacitor.isNativePlatform();
+  const [nativeAdsInitialized, setNativeAdsInitialized] = useState(false);
 
   useEffect(() => {
-    // Initialize Unity Ads
-    if (window.UnityAds) {
-      try {
-        window.UnityAds.init({
-          gameId: UNITY_GAME_ID,
-          debug: true, // Set to false in production
-        });
-        
-        // Preload the rewarded ad
-        window.UnityAds.load(UNITY_PLACEMENT_ID);
-        
-        // Check if ad is ready
-        const checkAdReady = setInterval(() => {
-          if (window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
-            setAdReady(true);
-            clearInterval(checkAdReady);
+    const initializeAds = async () => {
+      if (isNative) {
+        // Initialize Unity Ads for Native (Capacitor)
+        try {
+          const { UnityAds } = await import('capacitor-unity-ads');
+          
+          // Initialize with game ID
+          await UnityAds.initialize({
+            gameId: UNITY_GAME_ID,
+            testMode: true, // Alterar para false em produção
+          });
+
+          setNativeAdsInitialized(true);
+          console.log('Unity Ads inicializado (nativo)');
+
+          // Load rewarded video
+          await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
+          
+          // Check if ad is loaded
+          const checkAdReady = async () => {
+            const { loaded } = await UnityAds.isRewardedVideoLoaded();
+            setAdReady(loaded);
+            if (loaded) {
+              console.log('Anúncio carregado (nativo)');
+            }
+          };
+
+          checkAdReady();
+          const interval = setInterval(checkAdReady, 2000);
+          
+          return () => clearInterval(interval);
+        } catch (error) {
+          console.error('Erro ao configurar Unity Ads (nativo):', error);
+        }
+      } else {
+        // Initialize Unity Ads for Web (PWA)
+        if (window.UnityAds) {
+          try {
+            window.UnityAds.init({
+              gameId: UNITY_GAME_ID,
+              debug: true, // Alterar para false em produção
+            });
+            
+            // Preload the rewarded ad
+            window.UnityAds.load(UNITY_PLACEMENT_ID);
+            
+            // Check if ad is ready
+            const checkAdReady = setInterval(() => {
+              if (window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
+                setAdReady(true);
+                clearInterval(checkAdReady);
+              }
+            }, 1000);
+
+            return () => clearInterval(checkAdReady);
+          } catch (error) {
+            console.error("Erro ao inicializar Unity Ads (web):", error);
           }
-        }, 1000);
-
-        return () => clearInterval(checkAdReady);
-      } catch (error) {
-        console.error("Erro ao inicializar Unity Ads:", error);
+        }
       }
-    }
+    };
 
-    // Check and reset daily ad count
+    initializeAds();
     checkDailyAdLimit();
-  }, []);
+  }, [isNative]);
 
   const checkDailyAdLimit = () => {
     const today = new Date().toDateString();
@@ -178,75 +218,128 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
       return;
     }
 
-    // Check if Unity Ads is available and ready
-    if (!window.UnityAds) {
-      toast({
-        title: "Anúncios não disponíveis",
-        description: "Sistema de anúncios não carregado",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (isNative) {
+      // Native Unity Ads (Capacitor)
+      if (!nativeAdsInitialized || !adReady) {
+        toast({
+          title: "Anúncios não disponíveis",
+          description: "Aguarde o carregamento do anúncio",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (!window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
-      toast({
-        title: "Carregando vídeo...",
-        description: "Tente novamente em alguns segundos",
-      });
-      // Try to preload again
-      window.UnityAds.load(UNITY_PLACEMENT_ID);
-      return;
-    }
+      setIsLoadingAd(true);
 
-    setIsLoadingAd(true);
+      try {
+        const { UnityAds } = await import('capacitor-unity-ads');
+        
+        // Show rewarded video
+        const result = await UnityAds.showRewardedVideo();
+        setIsLoadingAd(false);
 
-    try {
-      window.UnityAds.show(UNITY_PLACEMENT_ID, {
-        onStart: () => {
+        if (result.success && result.reward) {
+          // User watched the ad to completion
+          setShowRewardDialog(true);
+          incrementAdCount();
+          
           toast({
-            title: "Anúncio iniciado",
-            description: "Assista até o final para escolher sua recompensa!",
+            title: "Anúncio completado! 🎉",
+            description: "Escolha sua recompensa",
           });
-        },
-        onComplete: (reward: boolean) => {
-          setIsLoadingAd(false);
-          if (reward) {
-            // User watched the ad to completion
-            setShowRewardDialog(true);
-            incrementAdCount();
-            // Preload next ad
-            window.UnityAds.load(UNITY_PLACEMENT_ID);
-          } else {
-            toast({
-              title: "Anúncio não completado",
-              description: "Você precisa assistir o anúncio completo para ganhar a recompensa",
-              variant: "destructive",
-            });
-          }
-        },
-        onError: (error: any) => {
-          console.error("Erro no Unity Ads:", error);
-          setIsLoadingAd(false);
+
+          // Load next ad
+          await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
+          setAdReady(false);
+          
+          // Check when next ad is ready
+          setTimeout(async () => {
+            const { loaded } = await UnityAds.isRewardedVideoLoaded();
+            setAdReady(loaded);
+          }, 2000);
+        } else {
           toast({
-            title: "Vídeo indisponível",
-            description: "Tente novamente em breve",
+            title: "Anúncio não completado",
+            description: "Você precisa assistir o anúncio completo para ganhar a recompensa",
             variant: "destructive",
           });
-          // Try to preload again
-          window.UnityAds.load(UNITY_PLACEMENT_ID);
-        },
-        onClose: () => {
-          setIsLoadingAd(false);
-        },
-      });
-    } catch (error) {
-      console.error("Erro ao mostrar anúncio Unity:", error);
-      setIsLoadingAd(false);
-      toast({
-        title: "Erro ao carregar anúncio",
-        description: "Tente novamente mais tarde",
-        variant: "destructive",
-      });
+        }
+      } catch (error) {
+        console.error("Erro ao exibir anúncio Unity (nativo):", error);
+        setIsLoadingAd(false);
+        toast({
+          title: "Erro ao carregar anúncio",
+          description: "Tente novamente mais tarde",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Web Unity Ads (PWA)
+      if (!window.UnityAds) {
+        toast({
+          title: "Anúncios não disponíveis",
+          description: "Sistema de anúncios não carregado",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
+        toast({
+          title: "Carregando vídeo...",
+          description: "Tente novamente em alguns segundos",
+        });
+        window.UnityAds.load(UNITY_PLACEMENT_ID);
+        return;
+      }
+
+      setIsLoadingAd(true);
+
+      try {
+        window.UnityAds.show(UNITY_PLACEMENT_ID, {
+          onStart: () => {
+            toast({
+              title: "Anúncio iniciado",
+              description: "Assista até o final para escolher sua recompensa!",
+            });
+          },
+          onComplete: (reward: boolean) => {
+            setIsLoadingAd(false);
+            if (reward) {
+              setShowRewardDialog(true);
+              incrementAdCount();
+              window.UnityAds.load(UNITY_PLACEMENT_ID);
+            } else {
+              toast({
+                title: "Anúncio não completado",
+                description: "Você precisa assistir o anúncio completo para ganhar a recompensa",
+                variant: "destructive",
+              });
+            }
+          },
+          onError: (error: any) => {
+            console.error("Erro no Unity Ads (web):", error);
+            setIsLoadingAd(false);
+            toast({
+              title: "Vídeo indisponível",
+              description: "Tente novamente em breve",
+              variant: "destructive",
+            });
+            window.UnityAds.load(UNITY_PLACEMENT_ID);
+          },
+          onClose: () => {
+            setIsLoadingAd(false);
+          },
+        });
+      } catch (error) {
+        console.error("Erro ao mostrar anúncio Unity (web):", error);
+        setIsLoadingAd(false);
+        toast({
+          title: "Erro ao carregar anúncio",
+          description: "Tente novamente mais tarde",
+          variant: "destructive",
+        });
+      }
     }
   };
 
