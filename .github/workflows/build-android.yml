@@ -17,39 +17,45 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'npm'  # Cacheia node_modules pra ser mais rápido
 
-      - name: Configurar Java
+      - name: Configurar JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3  # Action oficial pra instalar SDK completo
+
       - name: Instalar dependências
         run: npm install
 
-      - name: Build web
+      - name: Build web (dist)
         run: npm run build
 
-      - name: Adicionar Android (se necessário)
-        run: npx cap add android || true
+      - name: Adicionar plataforma Android (se necessário)
+        run: npx cap add android || echo "Plataforma já adicionada ou erro ignorado"
 
-      - name: Sync Capacitor
+      - name: Sync Capacitor (copia web + plugins Unity Ads)
         run: npx cap sync android
 
-      - name: Build APK debug
+      - name: Dar permissão pro Gradle
+        run: cd android && chmod +x ./gradlew
+
+      - name: Build APK debug (para teste rápido)
         run: cd android && ./gradlew assembleDebug
 
-      - name: Build AAB release
+      - name: Build AAB release (para Play Store)
         run: cd android && ./gradlew bundleRelease
 
-      - name: Upload APK
+      - name: Upload APK debug
         uses: actions/upload-artifact@v4
         with:
           name: EduKI-APK-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload AAB
+      - name: Upload AAB release
         uses: actions/upload-artifact@v4
         with:
           name: EduKI-AAB-release
