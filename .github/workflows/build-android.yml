@@ -31,6 +31,9 @@ jobs:
       - name: Instalar dependências
         run: npm install
 
+      - name: Instalar Capacitor CLI global (fallback seguro)
+        run: npm install -g @capacitor/cli
+
       - name: Build web (dist)
         run: npm run build
 
