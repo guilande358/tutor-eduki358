@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/core';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.8eedd528faf5473ba997f111735cf9e1',
+  appId: 'com.eduki.tutor',
   appName: 'EduKI',
   webDir: 'dist',
   server: {
