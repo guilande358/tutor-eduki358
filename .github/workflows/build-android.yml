@@ -37,10 +37,10 @@ jobs:
       - name: Build da web (dist)
         run: npm run build
 
-      - name: Adicionar plataforma Android
-        run: npx cap add android || echo "Já existe"
+      - name: Adicionar plataforma Android (cria a pasta android/)
+        run: npx cap add android
 
-      - name: Sync Capacitor (Unity Ads incluso)
+      - name: Sync Capacitor (copia web + plugins Unity Ads)
         run: npx cap sync android
 
       - name: Tornar Gradle executável
