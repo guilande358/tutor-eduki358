@@ -1,11 +1,3 @@
-// ===== MONETAG PUSH NOTIFICATIONS =====
-self.options = {
-    "domain": "5gvci.com",
-    "zoneId": 10256444
-}
-self.lary = ""
-importScripts('https://5gvci.com/act/files/service-worker.min.js?r=sw')
-
 // ===== PWA OFFLINE SUPPORT =====
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
 
