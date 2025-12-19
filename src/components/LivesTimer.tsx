@@ -38,9 +38,6 @@ interface LivesTimerProps {
   kiLevel: number;
 }
 
-const DAILY_AD_LIMIT = 10;
-const AD_LIMIT_STORAGE_KEY = 'eduKi_daily_ad_count';
-const AD_LIMIT_DATE_KEY = 'eduKi_daily_ad_date';
 const UNITY_GAME_ID = '5993995';
 const UNITY_PLACEMENT_ID = 'Rewarded_Android';
 
@@ -50,7 +47,10 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
   const [showRewardDialog, setShowRewardDialog] = useState(false);
   const [isLoadingAd, setIsLoadingAd] = useState(false);
   const [showMicroLesson, setShowMicroLesson] = useState(false);
-  const [dailyAdCount, setDailyAdCount] = useState(0);
+  
+  // Contador motivacional (sem limite – só pra mostrar progresso)
+  const [adsWatchedToday, setAdsWatchedToday] = useState(0);
+  
   const [adReady, setAdReady] = useState(false);
   const { toast } = useToast();
   const isNative = Capacitor.isNativePlatform();
@@ -63,19 +63,16 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
         try {
           const { UnityAds } = await import('capacitor-unity-ads');
           
-          // Initialize with game ID
           await UnityAds.initialize({
             gameId: UNITY_GAME_ID,
-            testMode: false, // Alterar para false em produção
+            testMode: false, // Produção = anúncios reais
           });
 
           setNativeAdsInitialized(true);
           console.log('Unity Ads inicializado (nativo)');
 
-          // Load rewarded video
           await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
           
-          // Check if ad is loaded
           const checkAdReady = async () => {
             const { loaded } = await UnityAds.isRewardedVideoLoaded();
             setAdReady(loaded);
@@ -92,18 +89,16 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
           console.error('Erro ao configurar Unity Ads (nativo):', error);
         }
       } else {
-        // Initialize Unity Ads for Web (PWA)
+        // Web Unity Ads (PWA) – fallback
         if (window.UnityAds) {
           try {
             window.UnityAds.init({
               gameId: UNITY_GAME_ID,
-              debug: true, // Alterar para false em produção
+              debug: false,
             });
             
-            // Preload the rewarded ad
             window.UnityAds.load(UNITY_PLACEMENT_ID);
             
-            // Check if ad is ready
             const checkAdReady = setInterval(() => {
               if (window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
                 setAdReady(true);
@@ -120,32 +115,30 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     };
 
     initializeAds();
-    checkDailyAdLimit();
+    loadAdsWatchedToday(); // Carrega contador motivacional
   }, [isNative]);
 
-  const checkDailyAdLimit = () => {
+  // Carrega quantos vídeos o usuário já assistiu hoje (só pra mostrar)
+  const loadAdsWatchedToday = () => {
     const today = new Date().toDateString();
-    const lastDate = localStorage.getItem(AD_LIMIT_DATE_KEY);
-    
-    if (lastDate !== today) {
-      // Reset count for new day
-      localStorage.setItem(AD_LIMIT_DATE_KEY, today);
-      localStorage.setItem(AD_LIMIT_STORAGE_KEY, '0');
-      setDailyAdCount(0);
+    const savedDate = localStorage.getItem('eduKi_ads_date');
+    const savedCount = localStorage.getItem('eduKi_ads_count');
+
+    if (savedDate === today) {
+      setAdsWatchedToday(parseInt(savedCount || '0'));
     } else {
-      const count = parseInt(localStorage.getItem(AD_LIMIT_STORAGE_KEY) || '0');
-      setDailyAdCount(count);
+      // Novo dia – reseta contador
+      localStorage.setItem('eduKi_ads_date', today);
+      localStorage.setItem('eduKi_ads_count', '0');
+      setAdsWatchedToday(0);
     }
   };
 
-  const incrementAdCount = () => {
-    const newCount = dailyAdCount + 1;
-    setDailyAdCount(newCount);
-    localStorage.setItem(AD_LIMIT_STORAGE_KEY, newCount.toString());
-  };
-
-  const canWatchAd = () => {
-    return dailyAdCount < DAILY_AD_LIMIT;
+  // Incrementa o contador motivacional após anúncio completado
+  const incrementAdsWatched = () => {
+    const newCount = adsWatchedToday + 1;
+    setAdsWatchedToday(newCount);
+    localStorage.setItem('eduKi_ads_count', newCount.toString());
   };
 
   useEffect(() => {
@@ -181,7 +174,6 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     const diff = nextLifeTime.getTime() - now.getTime();
 
     if (diff <= 0) {
-      // Recuperar vida automaticamente
       recoverLife();
       return;
     }
@@ -190,7 +182,7 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-    setTimeUntilNextLife(`${hours}h ${minutes}m ${seconds}s`);
+    setTimeUntilNextLife(`\( {hours}h \){minutes}m ${seconds}s`);
   };
 
   const recoverLife = async () => {
@@ -208,18 +200,7 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
   };
 
   const watchAdForLife = async () => {
-    // Check daily limit
-    if (!canWatchAd()) {
-      toast({
-        title: "Limite diário atingido",
-        description: `Você já assistiu ${DAILY_AD_LIMIT} anúncios hoje. Tente novamente amanhã!`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (isNative) {
-      // Native Unity Ads (Capacitor)
       if (!nativeAdsInitialized || !adReady) {
         toast({
           title: "Anúncios não disponíveis",
@@ -234,25 +215,21 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
       try {
         const { UnityAds } = await import('capacitor-unity-ads');
         
-        // Show rewarded video
         const result = await UnityAds.showRewardedVideo();
         setIsLoadingAd(false);
 
         if (result.success && result.reward) {
-          // User watched the ad to completion
           setShowRewardDialog(true);
-          incrementAdCount();
+          incrementAdsWatched(); // Atualiza contador motivacional
           
           toast({
             title: "Anúncio completado! 🎉",
             description: "Escolha sua recompensa",
           });
 
-          // Load next ad
           await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
           setAdReady(false);
           
-          // Check when next ad is ready
           setTimeout(async () => {
             const { loaded } = await UnityAds.isRewardedVideoLoaded();
             setAdReady(loaded);
@@ -274,72 +251,36 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
         });
       }
     } else {
-      // Web Unity Ads (PWA)
-      if (!window.UnityAds) {
-        toast({
-          title: "Anúncios não disponíveis",
-          description: "Sistema de anúncios não carregado",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
+      // Web (PWA) – fallback
+      if (!window.UnityAds || !window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
         toast({
           title: "Carregando vídeo...",
           description: "Tente novamente em alguns segundos",
         });
-        window.UnityAds.load(UNITY_PLACEMENT_ID);
+        window.UnityAds?.load(UNITY_PLACEMENT_ID);
         return;
       }
 
       setIsLoadingAd(true);
 
-      try {
-        window.UnityAds.show(UNITY_PLACEMENT_ID, {
-          onStart: () => {
-            toast({
-              title: "Anúncio iniciado",
-              description: "Assista até o final para escolher sua recompensa!",
-            });
-          },
-          onComplete: (reward: boolean) => {
-            setIsLoadingAd(false);
-            if (reward) {
-              setShowRewardDialog(true);
-              incrementAdCount();
-              window.UnityAds.load(UNITY_PLACEMENT_ID);
-            } else {
-              toast({
-                title: "Anúncio não completado",
-                description: "Você precisa assistir o anúncio completo para ganhar a recompensa",
-                variant: "destructive",
-              });
-            }
-          },
-          onError: (error: any) => {
-            console.error("Erro no Unity Ads (web):", error);
-            setIsLoadingAd(false);
-            toast({
-              title: "Vídeo indisponível",
-              description: "Tente novamente em breve",
-              variant: "destructive",
-            });
+      window.UnityAds.show(UNITY_PLACEMENT_ID, {
+        onComplete: (reward: boolean) => {
+          setIsLoadingAd(false);
+          if (reward) {
+            setShowRewardDialog(true);
+            incrementAdsWatched();
             window.UnityAds.load(UNITY_PLACEMENT_ID);
-          },
-          onClose: () => {
-            setIsLoadingAd(false);
-          },
-        });
-      } catch (error) {
-        console.error("Erro ao mostrar anúncio Unity (web):", error);
-        setIsLoadingAd(false);
-        toast({
-          title: "Erro ao carregar anúncio",
-          description: "Tente novamente mais tarde",
-          variant: "destructive",
-        });
-      }
+          }
+        },
+        onError: () => {
+          setIsLoadingAd(false);
+          toast({
+            title: "Vídeo indisponível",
+            description: "Tente novamente em breve",
+            variant: "destructive",
+          });
+        },
+      });
     }
   };
 
@@ -449,18 +390,19 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
           <p className="text-sm text-muted-foreground">
             Recupere vidas rapidamente:
           </p>
-          {!canWatchAd() && (
-            <p className="text-xs text-destructive">
-              Limite diário de anúncios atingido ({dailyAdCount}/{DAILY_AD_LIMIT})
-            </p>
-          )}
+          
+          {/* Dica extra motivacional */}
+          <p className="text-sm text-primary font-medium">
+            Vídeos assistidos hoje: {adsWatchedToday} 🚀
+          </p>
+
           <div className="grid grid-cols-2 gap-2">
             <Button
               onClick={watchAdForLife}
               variant="outline"
               size="sm"
               className="gap-2"
-              disabled={isLoadingAd || !canWatchAd()}
+              disabled={isLoadingAd}
             >
               <PlayCircle className="w-4 h-4" />
               {isLoadingAd ? "Carregando..." : "Assistir Vídeo"}
