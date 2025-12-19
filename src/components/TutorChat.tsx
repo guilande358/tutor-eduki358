@@ -37,7 +37,10 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
   const [uploading, setUploading] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Ref para acessar o viewport interno do ScrollArea (shadcn-ui)
+  const viewportRef = useRef<HTMLDivElement>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -45,15 +48,24 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
     loadChatHistory();
   }, [userId, currentConversationId]);
 
+  // Scroll automático corrigido – vai sempre pro final quando nova mensagem chega
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, loading]);
+
+  const scrollToBottom = () => {
+    if (viewportRef.current) {
+      const viewport = viewportRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    }
+  };
 
   const loadChatHistory = async () => {
     try {
       let conversationId = currentConversationId;
 
-      // Se não há conversa atual, criar ou buscar a mais recente
       if (!conversationId) {
         const { data: conversations, error: convError } = await supabase
           .from("conversations")
@@ -68,7 +80,6 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
           conversationId = conversations[0].id;
           setCurrentConversationId(conversationId);
         } else {
-          // Criar nova conversa
           const { data: newConv, error: createError } = await supabase
             .from("conversations")
             .insert({
@@ -84,7 +95,6 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
         }
       }
 
-      // Carregar mensagens da conversa
       const { data, error } = await supabase
         .from("chat_messages")
         .select("*")
@@ -95,7 +105,6 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        // Carregar mensagens e seus anexos
         const messagesWithAttachments = await Promise.all(
           data.map(async (msg) => {
             const { data: attachments } = await supabase
@@ -103,7 +112,6 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
               .select("*")
               .eq("message_id", msg.id);
 
-            // Obter URLs dos anexos
             const attachmentsWithUrls = await Promise.all(
               (attachments || []).map(async (att) => {
                 const { data: urlData } = await supabase.storage
@@ -127,7 +135,6 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
 
         setMessages(messagesWithAttachments);
       } else {
-        // Primeira vez - adicionar mensagem de boas-vindas
         const welcomeMessage: Message = {
           role: "assistant",
           content: `Olá! 👋 Eu sou o EduKI, seu tutor de IA personalizado! Estou aqui para te ajudar a aprender qualquer coisa.\n\nVejo que você está no nível KI ${kiLevel}. Vou adaptar minhas explicações para o seu nível. O que gostaria de aprender hoje? 📚\n\n💡 Dica: Você pode enviar imagens de exercícios para eu te ajudar!`,
@@ -156,7 +163,6 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
 
       if (error) throw error;
 
-      // Atualizar título da conversa baseado na primeira mensagem do usuário
       if (message.role === "user") {
         const { data: messages } = await supabase
           .from("chat_messages")
@@ -164,7 +170,6 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
           .eq("conversation_id", convId)
           .eq("role", "user");
 
-        // Se é a primeira mensagem do usuário, atualizar título
         if (messages && messages.length === 1) {
           const title = message.content.length > 40
             ? message.content.substring(0, 40) + "..."
@@ -178,12 +183,6 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
       }
     } catch (error: any) {
       console.error("Erro ao salvar mensagem:", error);
-    }
-  };
-
-  const scrollToBottom = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -215,7 +214,7 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
     try {
       for (const file of selectedFiles) {
         const fileExt = file.name.split(".").pop();
-        const fileName = `${userId}/${Date.now()}_${Math.random()}.${fileExt}`;
+        const fileName = `\( {userId}/ \){Date.now()}_\( {Math.random()}. \){fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from("chat-attachments")
@@ -276,7 +275,6 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
     setInput("");
     setLoading(true);
 
-    // Salvar mensagem do usuário
     const { data: savedMessage } = await supabase
       .from("chat_messages")
       .insert({
@@ -288,7 +286,6 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
       .select()
       .single();
 
-    // Upload de anexos
     let attachments: Attachment[] = [];
     if (savedMessage && selectedFiles.length > 0) {
       attachments = await uploadFiles(savedMessage.id);
@@ -300,11 +297,10 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
     }
 
     try {
-      // Preparar mensagens para a IA, incluindo informação sobre anexos
       const messagesForAI = [...messages, userMessage].map((msg) => ({
         role: msg.role,
         content: msg.attachments && msg.attachments.length > 0
-          ? `${msg.content}\n\n[Usuário anexou ${msg.attachments.length} imagem(ns). Por favor, considere que o estudante enviou imagens relacionadas à pergunta.]`
+          ? `\( {msg.content}\n\n[Usuário anexou \){msg.attachments.length} imagem(ns). Por favor, considere que o estudante enviou imagens relacionadas à pergunta.]`
           : msg.content,
       }));
 
@@ -333,10 +329,8 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
       };
       setMessages((prev) => [...prev, assistantMessage]);
       
-      // Salvar resposta do assistente e atualizar conversa
       await saveMessage(assistantMessage);
       
-      // Atualizar updated_at da conversa
       if (currentConversationId) {
         await supabase
           .from("conversations")
@@ -433,137 +427,137 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
           </div>
         </div>
 
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex gap-3 ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              {message.role === "assistant" && (
+        {/* ScrollArea corrigido com ref no viewport interno */}
+        <ScrollArea className="flex-1 p-4" ref={viewportRef}>
+          <div className="space-y-4">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex gap-3 ${
+                  message.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                {message.role === "assistant" && (
+                  <Avatar className="shrink-0">
+                    <AvatarFallback className="bg-primary text-white">
+                      <Bot className="w-4 h-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <div
+                  className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+                    message.role === "user"
+                      ? "bg-primary text-white"
+                      : "bg-muted"
+                  }`}
+                >
+                  <MathRenderer content={message.content} className="text-sm whitespace-pre-wrap" />
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {message.attachments.map((attachment) => (
+                        <div
+                          key={attachment.id}
+                          className="relative rounded-lg overflow-hidden border-2 border-white/20"
+                        >
+                          <img
+                            src={attachment.url}
+                            alt={attachment.file_name}
+                            className="max-w-full h-auto max-h-48 object-contain"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {message.role === "user" && (
+                  <Avatar className="shrink-0">
+                    <AvatarFallback className="bg-accent text-white">
+                      <User className="w-4 h-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            ))}
+            {loading && (
+              <div className="flex gap-3">
                 <Avatar className="shrink-0">
                   <AvatarFallback className="bg-primary text-white">
                     <Bot className="w-4 h-4" />
                   </AvatarFallback>
                 </Avatar>
-              )}
-              <div
-                className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                  message.role === "user"
-                    ? "bg-primary text-white"
-                    : "bg-muted"
-                }`}
-              >
-                <MathRenderer content={message.content} className="text-sm whitespace-pre-wrap" />
-                {message.attachments && message.attachments.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    {message.attachments.map((attachment) => (
-                      <div
-                        key={attachment.id}
-                        className="relative rounded-lg overflow-hidden border-2 border-white/20"
-                      >
-                        <img
-                          src={attachment.url}
-                          alt={attachment.file_name}
-                          className="max-w-full h-auto max-h-48 object-contain"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="rounded-2xl px-4 py-3 bg-muted">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                </div>
               </div>
-              {message.role === "user" && (
-                <Avatar className="shrink-0">
-                  <AvatarFallback className="bg-accent text-white">
-                    <User className="w-4 h-4" />
-                  </AvatarFallback>
-                </Avatar>
-              )}
-            </div>
-          ))}
-          {loading && (
-            <div className="flex gap-3">
-              <Avatar className="shrink-0">
-                <AvatarFallback className="bg-primary text-white">
-                  <Bot className="w-4 h-4" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="rounded-2xl px-4 py-3 bg-muted">
-                <Loader2 className="w-5 h-5 animate-spin text-primary" />
-              </div>
+            )}
+          </div>
+        </ScrollArea>
+
+        <div className="p-4 border-t space-y-3">
+          {selectedFiles.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {selectedFiles.map((file, index) => (
+                <div
+                  key={index}
+                  className="relative group bg-muted rounded-lg p-2 flex items-center gap-2"
+                >
+                  <FileImage className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground max-w-[100px] truncate">
+                    {file.name}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 absolute -top-1 -right-1 bg-background rounded-full"
+                    onClick={() => removeFile(index)}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
             </div>
           )}
-          <div ref={scrollRef} />
-        </div>
-      </ScrollArea>
 
-      <div className="p-4 border-t space-y-3">
-        {selectedFiles.length > 0 && (
-          <div className="flex gap-2 flex-wrap">
-            {selectedFiles.map((file, index) => (
-              <div
-                key={index}
-                className="relative group bg-muted rounded-lg p-2 flex items-center gap-2"
-              >
-                <FileImage className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground max-w-[100px] truncate">
-                  {file.name}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 absolute -top-1 -right-1 bg-background rounded-full"
-                  onClick={() => removeFile(index)}
-                >
-                  <X className="w-3 h-3" />
-                </Button>
-              </div>
-            ))}
+          <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading || uploading || selectedFiles.length >= 3}
+              title="Anexar imagem (máx. 3)"
+            >
+              <Paperclip className="w-4 h-4" />
+            </Button>
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Pergunte qualquer coisa ou envie uma imagem..."
+              disabled={loading || uploading}
+              className="flex-1"
+            />
+            <Button
+              onClick={sendMessage}
+              disabled={loading || uploading || (!input.trim() && selectedFiles.length === 0)}
+              className="bg-gradient-primary"
+            >
+              {loading || uploading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </Button>
           </div>
-        )}
-
-        <div className="flex gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFileSelect}
-          />
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={loading || uploading || selectedFiles.length >= 3}
-            title="Anexar imagem (máx. 3)"
-          >
-            <Paperclip className="w-4 h-4" />
-          </Button>
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Pergunte qualquer coisa ou envie uma imagem..."
-            disabled={loading || uploading}
-            className="flex-1"
-          />
-          <Button
-            onClick={sendMessage}
-            disabled={loading || uploading || (!input.trim() && selectedFiles.length === 0)}
-            className="bg-gradient-primary"
-          >
-            {loading || uploading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </Button>
         </div>
-      </div>
-    </Card>
+      </Card>
     </div>
   );
 };
