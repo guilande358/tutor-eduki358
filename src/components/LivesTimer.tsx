@@ -66,7 +66,7 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
           // Initialize with game ID
           await UnityAds.initialize({
             gameId: UNITY_GAME_ID,
-            testMode: true, // Alterar para false em produção
+            testMode: false, // Alterar para false em produção
           });
 
           setNativeAdsInitialized(true);
