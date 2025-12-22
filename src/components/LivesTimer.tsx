@@ -59,13 +59,12 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
   useEffect(() => {
     const initializeAds = async () => {
       if (isNative) {
-        // Initialize Unity Ads for Native (Capacitor)
         try {
           const { UnityAds } = await import('capacitor-unity-ads');
           
           await UnityAds.initialize({
             gameId: UNITY_GAME_ID,
-            testMode: false, // Produção = anúncios reais
+            testMode: false, // Produção
           });
 
           setNativeAdsInitialized(true);
@@ -89,7 +88,7 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
           console.error('Erro ao configurar Unity Ads (nativo):', error);
         }
       } else {
-        // Web Unity Ads (PWA) – fallback
+        // Web (PWA)
         if (window.UnityAds) {
           try {
             window.UnityAds.init({
@@ -115,10 +114,9 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     };
 
     initializeAds();
-    loadAdsWatchedToday(); // Carrega contador motivacional
+    loadAdsWatchedToday();
   }, [isNative]);
 
-  // Carrega quantos vídeos o usuário já assistiu hoje (só pra mostrar)
   const loadAdsWatchedToday = () => {
     const today = new Date().toDateString();
     const savedDate = localStorage.getItem('eduKi_ads_date');
@@ -127,14 +125,12 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     if (savedDate === today) {
       setAdsWatchedToday(parseInt(savedCount || '0'));
     } else {
-      // Novo dia – reseta contador
       localStorage.setItem('eduKi_ads_date', today);
       localStorage.setItem('eduKi_ads_count', '0');
       setAdsWatchedToday(0);
     }
   };
 
-  // Incrementa o contador motivacional após anúncio completado
   const incrementAdsWatched = () => {
     const newCount = adsWatchedToday + 1;
     setAdsWatchedToday(newCount);
@@ -201,57 +197,69 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
 
   const watchAdForLife = async () => {
     if (isNative) {
-      if (!nativeAdsInitialized || !adReady) {
+      if (!nativeAdsInitialized) {
         toast({
-          title: "Anúncios não disponíveis",
-          description: "Aguarde o carregamento do anúncio",
-          variant: "destructive",
+          title: "Carregando anúncios...",
+          description: "Inicializando, tente novamente em alguns segundos",
         });
+        return;
+      }
+
+      if (!adReady) {
+        toast({
+          title: "Preparando anúncio...",
+          description: "Quase pronto, tente novamente em 2 segundos",
+        });
+        
+        try {
+          await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
+        } catch (err) {}
         return;
       }
 
       setIsLoadingAd(true);
 
       try {
-        const { UnityAds } = await import('capacitor-unity-ads');
-        
-        const result = await UnityAds.showRewardedVideo();
-        setIsLoadingAd(false);
+        // Listener explícito para registrar finish no Unity Ads (essencial para revenue)
+        const finishListener = (result) => {
+          setIsLoadingAd(false);
+          console.log('Unity Ads Finished:', result);
 
-        if (result.success && result.reward) {
-          setShowRewardDialog(true);
-          incrementAdsWatched(); // Atualiza contador motivacional
-          
-          toast({
-            title: "Anúncio completado! 🎉",
-            description: "Escolha sua recompensa",
-          });
+          if (result.success && result.reward) {
+            setShowRewardDialog(true);
+            incrementAdsWatched();
+            toast({
+              title: "Anúncio completado! 🎉",
+              description: "Escolha sua recompensa",
+            });
+          } else {
+            toast({
+              title: "Anúncio não completado",
+              description: "Assista até o final para ganhar a recompensa",
+              variant: "destructive",
+            });
+          }
 
-          await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
-          setAdReady(false);
-          
-          setTimeout(async () => {
-            const { loaded } = await UnityAds.isRewardedVideoLoaded();
-            setAdReady(loaded);
-          }, 2000);
-        } else {
-          toast({
-            title: "Anúncio não completado",
-            description: "Você precisa assistir o anúncio completo para ganhar a recompensa",
-            variant: "destructive",
-          });
-        }
+          // Remove listener após uso
+          UnityAds.removeListener('adFinished', finishListener);
+        };
+
+        UnityAds.addListener('adFinished', finishListener);
+
+        await UnityAds.showRewardedVideo();
+
+        await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
       } catch (error) {
-        console.error("Erro ao exibir anúncio Unity (nativo):", error);
+        console.error("Erro Unity Ads:", error);
         setIsLoadingAd(false);
         toast({
-          title: "Erro ao carregar anúncio",
-          description: "Tente novamente mais tarde",
+          title: "Erro ao mostrar",
+          description: "Tente novamente",
           variant: "destructive",
         });
       }
     } else {
-      // Web (PWA) – fallback
+      // Web (PWA)
       if (!window.UnityAds || !window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
         toast({
           title: "Carregando vídeo...",
@@ -391,7 +399,7 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
             Recupere vidas rapidamente:
           </p>
           
-          {/* Dica extra motivacional */}
+          {/* Dica motivacional */}
           <p className="text-sm text-primary font-medium">
             Vídeos assistidos hoje: {adsWatchedToday} 🚀
           </p>
@@ -404,8 +412,17 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
               className="gap-2"
               disabled={isLoadingAd}
             >
-              <PlayCircle className="w-4 h-4" />
-              {isLoadingAd ? "Carregando..." : "Assistir Vídeo"}
+              {isLoadingAd ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Carregando...
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="w-4 h-4" />
+                  Assistir Vídeo
+                </>
+              )}
             </Button>
             <Button
               onClick={completeMicroLesson}
