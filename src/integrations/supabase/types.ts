@@ -163,6 +163,39 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_challenges: {
+        Row: {
+          challenge_data: Json
+          challenge_date: string
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          is_completed: boolean | null
+          user_id: string
+          xp_reward: number | null
+        }
+        Insert: {
+          challenge_data: Json
+          challenge_date?: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          user_id: string
+          xp_reward?: number | null
+        }
+        Update: {
+          challenge_data?: Json
+          challenge_date?: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          user_id?: string
+          xp_reward?: number | null
+        }
+        Relationships: []
+      }
       daily_goals: {
         Row: {
           completed_at: string | null
@@ -253,6 +286,109 @@ export type Database = {
         }
         Relationships: []
       }
+      reward_shop: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          reward_data: Json | null
+          reward_type: string
+          xp_cost: number
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          reward_data?: Json | null
+          reward_type: string
+          xp_cost: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          reward_data?: Json | null
+          reward_type?: string
+          xp_cost?: number
+        }
+        Relationships: []
+      }
+      room_messages: {
+        Row: {
+          content: string
+          content_type: string | null
+          created_at: string | null
+          id: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          content_type?: string | null
+          created_at?: string | null
+          id?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          content_type?: string | null
+          created_at?: string | null
+          id?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "study_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_participants: {
+        Row: {
+          id: string
+          is_tutor_active: boolean | null
+          joined_at: string | null
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_tutor_active?: boolean | null
+          joined_at?: string | null
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_tutor_active?: boolean | null
+          joined_at?: string | null
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "study_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_suggestions: {
         Row: {
           completed_at: string | null
@@ -289,56 +425,148 @@ export type Database = {
         }
         Relationships: []
       }
+      study_rooms: {
+        Row: {
+          code: string
+          created_at: string | null
+          host_user_id: string
+          id: string
+          is_active: boolean | null
+          mode: string | null
+          title: string
+          updated_at: string | null
+          whiteboard_data: Json | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          host_user_id: string
+          id?: string
+          is_active?: boolean | null
+          mode?: string | null
+          title?: string
+          updated_at?: string | null
+          whiteboard_data?: Json | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          host_user_id?: string
+          id?: string
+          is_active?: boolean | null
+          mode?: string | null
+          title?: string
+          updated_at?: string | null
+          whiteboard_data?: Json | null
+        }
+        Relationships: []
+      }
       user_progress: {
         Row: {
+          country_region: string | null
           created_at: string | null
           daily_streak: number | null
           id: string
+          is_premium: boolean | null
           ki_level: number | null
           language: string | null
           last_life_lost_at: string | null
           last_study_date: string | null
+          level: number | null
           lives: number | null
+          preferred_subjects: string[] | null
+          premium_expires_at: string | null
           sound_enabled: boolean | null
+          study_goals: string | null
           theme: string | null
+          total_videos_watched: number | null
           updated_at: string | null
           user_id: string
           vibration_enabled: boolean | null
           xp: number | null
         }
         Insert: {
+          country_region?: string | null
           created_at?: string | null
           daily_streak?: number | null
           id?: string
+          is_premium?: boolean | null
           ki_level?: number | null
           language?: string | null
           last_life_lost_at?: string | null
           last_study_date?: string | null
+          level?: number | null
           lives?: number | null
+          preferred_subjects?: string[] | null
+          premium_expires_at?: string | null
           sound_enabled?: boolean | null
+          study_goals?: string | null
           theme?: string | null
+          total_videos_watched?: number | null
           updated_at?: string | null
           user_id: string
           vibration_enabled?: boolean | null
           xp?: number | null
         }
         Update: {
+          country_region?: string | null
           created_at?: string | null
           daily_streak?: number | null
           id?: string
+          is_premium?: boolean | null
           ki_level?: number | null
           language?: string | null
           last_life_lost_at?: string | null
           last_study_date?: string | null
+          level?: number | null
           lives?: number | null
+          preferred_subjects?: string[] | null
+          premium_expires_at?: string | null
           sound_enabled?: boolean | null
+          study_goals?: string | null
           theme?: string | null
+          total_videos_watched?: number | null
           updated_at?: string | null
           user_id?: string
           vibration_enabled?: boolean | null
           xp?: number | null
         }
         Relationships: []
+      }
+      user_rewards: {
+        Row: {
+          id: string
+          is_active: boolean | null
+          purchased_at: string | null
+          reward_id: string | null
+          reward_type: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_active?: boolean | null
+          purchased_at?: string | null
+          reward_id?: string | null
+          reward_type: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_active?: boolean | null
+          purchased_at?: string | null
+          reward_id?: string | null
+          reward_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_rewards_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "reward_shop"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wrong_answers: {
         Row: {
