@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Clock, PlayCircle, BookOpen, Gift } from "lucide-react";
+import { Heart, Clock, PlayCircle, BookOpen, Gift, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -212,6 +212,7 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
         });
         
         try {
+          const { UnityAds } = await import('capacitor-unity-ads');
           await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
         } catch (err) {}
         return;
@@ -220,34 +221,30 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
       setIsLoadingAd(true);
 
       try {
-        // Listener explícito para registrar finish no Unity Ads (essencial para revenue)
-        const finishListener = (result) => {
-          setIsLoadingAd(false);
-          console.log('Unity Ads Finished:', result);
+        const { UnityAds } = await import('capacitor-unity-ads');
+        
+        // Mostrar vídeo recompensado
+        const result = await UnityAds.showRewardedVideo();
+        
+        setIsLoadingAd(false);
+        console.log('Unity Ads Result:', result);
 
-          if (result.success && result.reward) {
-            setShowRewardDialog(true);
-            incrementAdsWatched();
-            toast({
-              title: "Anúncio completado! 🎉",
-              description: "Escolha sua recompensa",
-            });
-          } else {
-            toast({
-              title: "Anúncio não completado",
-              description: "Assista até o final para ganhar a recompensa",
-              variant: "destructive",
-            });
-          }
+        if (result.reward) {
+          setShowRewardDialog(true);
+          incrementAdsWatched();
+          toast({
+            title: "Anúncio completado! 🎉",
+            description: "Escolha sua recompensa",
+          });
+        } else {
+          toast({
+            title: "Anúncio não completado",
+            description: "Assista até o final para ganhar a recompensa",
+            variant: "destructive",
+          });
+        }
 
-          // Remove listener após uso
-          UnityAds.removeListener('adFinished', finishListener);
-        };
-
-        UnityAds.addListener('adFinished', finishListener);
-
-        await UnityAds.showRewardedVideo();
-
+        // Pré-carregar próximo anúncio
         await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
       } catch (error) {
         console.error("Erro Unity Ads:", error);
