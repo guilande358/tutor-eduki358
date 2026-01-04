@@ -16,12 +16,15 @@ import LearningProfile from "@/components/LearningProfile";
 import ProgressDashboard from "@/components/progress/ProgressDashboard";
 import DailyChallengeCard from "@/components/progress/DailyChallengeCard";
 import StudyRoomPage from "@/components/study-room/StudyRoomPage";
+import PremiumSubscription from "@/components/PremiumSubscription";
+import NotificationSettings from "@/components/NotificationSettings";
 import { 
   GraduationCap, LogOut, MessageSquare, Dumbbell, Trophy, 
-  AlertCircle, Home, TrendingUp, Users, User as UserIcon
+  AlertCircle, Home, TrendingUp, Users, User as UserIcon, Crown, Bell
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAchievements } from "@/hooks/useAchievements";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -30,6 +33,7 @@ const Index = () => {
   const [currentLives, setCurrentLives] = useState(3);
   const [activeTab, setActiveTab] = useState("home");
   const [showStudyRoom, setShowStudyRoom] = useState(false);
+  const [showPremium, setShowPremium] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -175,6 +179,15 @@ const Index = () => {
             </div>
             <div className="flex items-center gap-2">
               <Button
+                onClick={() => setShowPremium(true)}
+                variant="outline"
+                size="sm"
+                className="gap-2 hidden sm:flex bg-gradient-to-r from-yellow-400/20 to-orange-500/20 border-yellow-500/50 hover:border-yellow-500"
+              >
+                <Crown className="w-4 h-4 text-yellow-500" />
+                Premium
+              </Button>
+              <Button
                 onClick={() => setShowStudyRoom(true)}
                 variant="outline"
                 size="sm"
@@ -254,6 +267,10 @@ const Index = () => {
               <UserIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Perfil</span>
             </TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-1 text-xs sm:text-sm py-2 hidden sm:flex">
+              <Bell className="w-4 h-4" />
+              <span className="hidden sm:inline">Alertas</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Mobile-only button for Study Room */}
@@ -304,7 +321,20 @@ const Index = () => {
           <TabsContent value="profile" className="max-w-4xl mx-auto">
             <LearningProfile userId={user.id} />
           </TabsContent>
+
+          <TabsContent value="notifications" className="max-w-4xl mx-auto">
+            <NotificationSettings userId={user.id} />
+          </TabsContent>
         </Tabs>
+
+        {/* Premium Modal */}
+        {showPremium && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 overflow-auto">
+            <div className="container mx-auto px-4 py-8 max-w-2xl">
+              <PremiumSubscription userId={user.id} onBack={() => setShowPremium(false)} />
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

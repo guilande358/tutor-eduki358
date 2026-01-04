@@ -41,6 +41,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_impressions: {
+        Row: {
+          ad_type: string
+          id: string
+          placement_id: string | null
+          reward_claimed: boolean | null
+          reward_type: string | null
+          user_id: string
+          watched_at: string | null
+        }
+        Insert: {
+          ad_type?: string
+          id?: string
+          placement_id?: string | null
+          reward_claimed?: boolean | null
+          reward_type?: string | null
+          user_id: string
+          watched_at?: string | null
+        }
+        Update: {
+          ad_type?: string
+          id?: string
+          placement_id?: string | null
+          reward_claimed?: boolean | null
+          reward_type?: string | null
+          user_id?: string
+          watched_at?: string | null
+        }
+        Relationships: []
+      }
       chat_attachments: {
         Row: {
           created_at: string
@@ -262,6 +292,45 @@ export type Database = {
           topic?: string
           user_id?: string
           xp_gained?: number | null
+        }
+        Relationships: []
+      }
+      notification_settings: {
+        Row: {
+          created_at: string | null
+          daily_challenge_reminders: boolean | null
+          id: string
+          push_enabled: boolean | null
+          push_subscription: Json | null
+          reminder_time: string | null
+          streak_reminders: boolean | null
+          study_reminders: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          daily_challenge_reminders?: boolean | null
+          id?: string
+          push_enabled?: boolean | null
+          push_subscription?: Json | null
+          reminder_time?: string | null
+          streak_reminders?: boolean | null
+          study_reminders?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          daily_challenge_reminders?: boolean | null
+          id?: string
+          push_enabled?: boolean | null
+          push_subscription?: Json | null
+          reminder_time?: string | null
+          streak_reminders?: boolean | null
+          study_reminders?: boolean | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -567,6 +636,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          payment_id: string | null
+          payment_provider: string | null
+          plan_type: string
+          started_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          payment_id?: string | null
+          payment_provider?: string | null
+          plan_type?: string
+          started_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          payment_id?: string | null
+          payment_provider?: string | null
+          plan_type?: string
+          started_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       wrong_answers: {
         Row: {
