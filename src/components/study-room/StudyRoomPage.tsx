@@ -10,6 +10,7 @@ import Whiteboard from "@/components/study-room/Whiteboard";
 import RoomChat from "@/components/study-room/RoomChat";
 import ParticipantGrid from "@/components/study-room/ParticipantGrid";
 import CallTutorButton from "@/components/study-room/CallTutorButton";
+import MediaControls from "@/components/study-room/MediaControls";
 import { motion } from "framer-motion";
 
 interface StudyRoomPageProps {
@@ -231,8 +232,9 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
           <Whiteboard roomId={room.id} />
         </div>
 
-        {/* Sidebar - Chat & Participants */}
+        {/* Sidebar - Chat, Media & Participants */}
         <div className="flex flex-col gap-4 min-h-[300px] lg:min-h-0">
+          <MediaControls compact />
           <ParticipantGrid
             roomId={room.id}
             hostUserId={room.host_user_id}
