@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { GraduationCap, Sparkles } from "lucide-react";
+import Footer from "@/components/Footer";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -196,6 +197,9 @@ const Auth = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Footer GTECHS */}
+      <Footer />
     </div>
   );
 };

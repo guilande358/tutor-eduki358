@@ -11,6 +11,10 @@ import RoomChat from "@/components/study-room/RoomChat";
 import ParticipantGrid from "@/components/study-room/ParticipantGrid";
 import CallTutorButton from "@/components/study-room/CallTutorButton";
 import MediaControls from "@/components/study-room/MediaControls";
+import VideoGrid from "@/components/study-room/VideoGrid";
+import Footer from "@/components/Footer";
+import { useWebRTC } from "@/hooks/useWebRTC";
+import { useMediaDevices } from "@/hooks/useMediaDevices";
 import { motion } from "framer-motion";
 
 interface StudyRoomPageProps {
@@ -32,15 +36,84 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
   const [room, setRoom] = useState<Room | null>(null);
   const [isTutorActive, setIsTutorActive] = useState(false);
   const [tutorLoading, setTutorLoading] = useState(false);
+  const [showVideo, setShowVideo] = useState(true);
+  const [participantNames, setParticipantNames] = useState<Map<string, string>>(new Map());
   const { toast } = useToast();
 
   const codeFromUrl = searchParams.get("code");
+
+  // Media devices hook
+  const {
+    mediaState,
+    stream: localStream,
+    toggleCamera,
+    toggleMicrophone,
+    startCamera,
+    stopCamera,
+  } = useMediaDevices();
+
+  // WebRTC hook - only active when in a room
+  const {
+    remoteStreams,
+    connectToParticipants,
+    disconnect: disconnectWebRTC,
+  } = useWebRTC({
+    roomId: room?.id || "",
+    userId,
+    localStream,
+  });
 
   useEffect(() => {
     if (codeFromUrl) {
       joinRoomByCode(codeFromUrl);
     }
   }, [codeFromUrl]);
+
+  // Start camera when entering room
+  useEffect(() => {
+    if (room) {
+      startCamera().catch(console.error);
+    }
+    return () => {
+      stopCamera();
+      disconnectWebRTC();
+    };
+  }, [room?.id]);
+
+  // Connect to participants when room is joined
+  useEffect(() => {
+    if (room && localStream) {
+      loadParticipantsAndConnect();
+    }
+  }, [room?.id, localStream]);
+
+  const loadParticipantsAndConnect = async () => {
+    if (!room) return;
+
+    const { data: participants } = await supabase
+      .from("room_participants")
+      .select("user_id")
+      .eq("room_id", room.id);
+
+    if (participants) {
+      const participantIds = participants.map(p => p.user_id).filter(id => id !== userId);
+      
+      // Load names
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", participantIds);
+
+      if (profiles) {
+        const names = new Map<string, string>();
+        profiles.forEach(p => names.set(p.id, p.full_name || "Participante"));
+        setParticipantNames(names);
+      }
+
+      // Connect via WebRTC
+      connectToParticipants(participantIds);
+    }
+  };
 
   const joinRoomByCode = async (code: string) => {
     const { data, error } = await supabase
@@ -76,6 +149,9 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
 
   const leaveRoom = async () => {
     if (!room) return;
+
+    disconnectWebRTC();
+    stopCamera();
 
     await supabase
       .from("room_participants")
@@ -144,21 +220,23 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
         content_type: "text",
       });
 
-      // Call AI tutor
+      // Call AI tutor with humanized personality
       const { data, error } = await supabase.functions.invoke("ai-tutor", {
         body: {
-          message: `Estou em uma sala de estudo colaborativa. Por favor, responda de forma clara e didática, usando LaTeX para fórmulas quando necessário: ${question}`,
-          userId,
-          kiLevel: 50, // Default
+          messages: [
+            { role: "user", content: question }
+          ],
+          kiLevel: 50,
+          isStudyRoom: true,
         },
       });
 
-      if (data?.response) {
+      if (data?.reply) {
         // Post AI response to chat
         await supabase.from("room_messages").insert({
           room_id: room.id,
-          user_id: userId, // Will show as "Tutor" in UI
-          content: `🤖 **Tutor EduKI:**\n\n${data.response}`,
+          user_id: userId,
+          content: `🤖 **Tutor EduKI:**\n\n${data.reply}`,
           content_type: "latex",
         });
       }
@@ -176,12 +254,13 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
 
   if (!room) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 pb-8">
         <Button variant="ghost" onClick={onBack} className="gap-2">
           <ArrowLeft className="w-4 h-4" />
           Voltar
         </Button>
         <StudyRoomLobby userId={userId} onJoinRoom={handleJoinRoom} />
+        <Footer />
       </div>
     );
   }
@@ -190,7 +269,7 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="h-[calc(100vh-120px)] flex flex-col"
+      className="h-[calc(100vh-120px)] flex flex-col pb-8"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -227,9 +306,27 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
 
       {/* Main Content - Responsive Layout */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
-        {/* Whiteboard - Takes 2/3 on desktop */}
-        <div className="lg:col-span-2 min-h-[300px] lg:min-h-0">
-          <Whiteboard roomId={room.id} />
+        {/* Left Column: Whiteboard + Video Grid */}
+        <div className="lg:col-span-2 flex flex-col gap-4 min-h-[300px] lg:min-h-0">
+          {/* Video Grid */}
+          {showVideo && (
+            <div className="h-[200px] lg:h-[180px]">
+              <VideoGrid
+                localStream={localStream}
+                remoteStreams={remoteStreams}
+                participantNames={participantNames}
+                localUserId={userId}
+                localUserName={userName}
+                isCameraOn={mediaState.isVideoEnabled}
+                isMicOn={mediaState.isAudioEnabled}
+              />
+            </div>
+          )}
+          
+          {/* Whiteboard */}
+          <div className="flex-1 min-h-[200px]">
+            <Whiteboard roomId={room.id} />
+          </div>
         </div>
 
         {/* Sidebar - Chat, Media & Participants */}
@@ -254,6 +351,9 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
         onAskTutor={handleAskTutor}
         loading={tutorLoading}
       />
+
+      {/* Footer GTECHS */}
+      <Footer />
     </motion.div>
   );
 };

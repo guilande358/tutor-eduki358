@@ -18,19 +18,22 @@ import DailyChallengeCard from "@/components/progress/DailyChallengeCard";
 import StudyRoomPage from "@/components/study-room/StudyRoomPage";
 import PremiumSubscription from "@/components/PremiumSubscription";
 import NotificationSettings from "@/components/NotificationSettings";
+import CreditsDisplay from "@/components/CreditsDisplay";
+import ConvertXPCredits from "@/components/ConvertXPCredits";
+import Footer from "@/components/Footer";
 import { 
   GraduationCap, LogOut, MessageSquare, Dumbbell, Trophy, 
   AlertCircle, Home, TrendingUp, Users, User as UserIcon, Crown, Bell
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAchievements } from "@/hooks/useAchievements";
-import { useNotifications } from "@/hooks/useNotifications";
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userName, setUserName] = useState("Estudante");
   const [kiLevel, setKiLevel] = useState(0);
   const [currentLives, setCurrentLives] = useState(3);
+  const [userXP, setUserXP] = useState(0);
   const [activeTab, setActiveTab] = useState("home");
   const [showStudyRoom, setShowStudyRoom] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
@@ -97,13 +100,14 @@ const Index = () => {
     // Fetch progress
     const { data: progress } = await supabase
       .from('user_progress')
-      .select('ki_level, lives')
+      .select('ki_level, lives, xp')
       .eq('user_id', user.id)
       .maybeSingle();
 
     if (progress) {
       setKiLevel(progress.ki_level || 0);
       setCurrentLives(progress.lives || 3);
+      setUserXP(progress.xp || 0);
     }
 
     // Fetch profile name
@@ -178,6 +182,7 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <CreditsDisplay userId={user.id} />
               <Button
                 onClick={() => setShowPremium(true)}
                 variant="outline"
@@ -295,7 +300,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="tutor" className="max-w-4xl mx-auto">
-            <TutorChat userId={user.id} kiLevel={kiLevel} />
+            <TutorChat userId={user.id} kiLevel={kiLevel} onShowPremium={() => setShowPremium(true)} />
           </TabsContent>
 
           <TabsContent value="exercises" className="max-w-4xl mx-auto">
@@ -318,7 +323,14 @@ const Index = () => {
             <AchievementsPanel userId={user.id} />
           </TabsContent>
 
-          <TabsContent value="profile" className="max-w-4xl mx-auto">
+          <TabsContent value="profile" className="max-w-4xl mx-auto space-y-4">
+            {userXP >= 1000 && (
+              <ConvertXPCredits 
+                userId={user.id} 
+                xp={userXP} 
+                onConversionComplete={fetchUserData} 
+              />
+            )}
             <LearningProfile userId={user.id} />
           </TabsContent>
 
@@ -336,6 +348,9 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      {/* Footer GTECHS */}
+      <Footer />
     </div>
   );
 };

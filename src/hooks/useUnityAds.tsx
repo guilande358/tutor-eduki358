@@ -258,7 +258,7 @@ export const useUnityAds = (userId: string) => {
   }, [isInitialized, isAdReady, isNative, recordAdImpression, toast]);
 
   // Claim reward and update database
-  const claimReward = useCallback(async (rewardType: "life" | "xp") => {
+  const claimReward = useCallback(async (rewardType: "life" | "xp" | "credits") => {
     try {
       // Get latest impression that wasn't claimed
       const { data: impressions } = await supabase
@@ -280,7 +280,7 @@ export const useUnityAds = (userId: string) => {
       // Give reward
       const { data: progress } = await supabase
         .from("user_progress")
-        .select("lives, xp")
+        .select("lives, xp, credits")
         .eq("user_id", userId)
         .single();
 
@@ -293,6 +293,16 @@ export const useUnityAds = (userId: string) => {
         toast({
           title: "Vida recuperada! ❤️",
           description: "Você ganhou +1 vida",
+        });
+      } else if (rewardType === "credits") {
+        await supabase
+          .from("user_progress")
+          .update({ credits: (progress?.credits || 0) + 2 })
+          .eq("user_id", userId);
+
+        toast({
+          title: "Créditos ganhos! 🪙",
+          description: "Você ganhou +2 créditos",
         });
       } else {
         await supabase
@@ -317,6 +327,45 @@ export const useUnityAds = (userId: string) => {
     }
   }, [userId, loadAdStats, toast]);
 
+  // Quick reward - +2 credits directly (for NoCreditsDialog)
+  const claimCreditsReward = useCallback(async () => {
+    try {
+      const { data: progress } = await supabase
+        .from("user_progress")
+        .select("credits, total_videos_watched")
+        .eq("user_id", userId)
+        .single();
+
+      await supabase
+        .from("user_progress")
+        .update({ 
+          credits: (progress?.credits || 0) + 2,
+          total_videos_watched: (progress?.total_videos_watched || 0) + 1,
+        })
+        .eq("user_id", userId);
+
+      // Record in ad_impressions
+      await supabase.from("ad_impressions").insert({
+        user_id: userId,
+        ad_type: "rewarded",
+        placement_id: UNITY_PLACEMENT_ID,
+        reward_type: "credits",
+        reward_claimed: true,
+      });
+
+      toast({
+        title: "Créditos ganhos! 🪙",
+        description: "Você ganhou +2 créditos por assistir o anúncio",
+      });
+
+      await loadAdStats();
+      return true;
+    } catch (error) {
+      console.error("Error claiming credits:", error);
+      return false;
+    }
+  }, [userId, loadAdStats, toast]);
+
   return {
     isInitialized,
     isAdReady,
@@ -324,6 +373,7 @@ export const useUnityAds = (userId: string) => {
     adStats,
     showRewardedAd,
     claimReward,
+    claimCreditsReward,
     loadAdStats,
   };
 };

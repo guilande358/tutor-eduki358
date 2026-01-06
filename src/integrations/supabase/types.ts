@@ -534,11 +534,16 @@ export type Database = {
         Row: {
           country_region: string | null
           created_at: string | null
+          credits: number | null
+          credits_received_today: number | null
+          credits_used_this_month: number | null
           daily_streak: number | null
           id: string
           is_premium: boolean | null
           ki_level: number | null
           language: string | null
+          last_credits_reset: string | null
+          last_daily_credit_date: string | null
           last_life_lost_at: string | null
           last_study_date: string | null
           level: number | null
@@ -557,11 +562,16 @@ export type Database = {
         Insert: {
           country_region?: string | null
           created_at?: string | null
+          credits?: number | null
+          credits_received_today?: number | null
+          credits_used_this_month?: number | null
           daily_streak?: number | null
           id?: string
           is_premium?: boolean | null
           ki_level?: number | null
           language?: string | null
+          last_credits_reset?: string | null
+          last_daily_credit_date?: string | null
           last_life_lost_at?: string | null
           last_study_date?: string | null
           level?: number | null
@@ -580,11 +590,16 @@ export type Database = {
         Update: {
           country_region?: string | null
           created_at?: string | null
+          credits?: number | null
+          credits_received_today?: number | null
+          credits_used_this_month?: number | null
           daily_streak?: number | null
           id?: string
           is_premium?: boolean | null
           ki_level?: number | null
           language?: string | null
+          last_credits_reset?: string | null
+          last_daily_credit_date?: string | null
           last_life_lost_at?: string | null
           last_study_date?: string | null
           level?: number | null
@@ -672,6 +687,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      webrtc_signals: {
+        Row: {
+          created_at: string | null
+          from_user_id: string
+          id: string
+          room_id: string | null
+          signal_data: Json
+          signal_type: string
+          to_user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          from_user_id: string
+          id?: string
+          room_id?: string | null
+          signal_data: Json
+          signal_type: string
+          to_user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          from_user_id?: string
+          id?: string
+          room_id?: string | null
+          signal_data?: Json
+          signal_type?: string
+          to_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webrtc_signals_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "study_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wrong_answers: {
         Row: {
