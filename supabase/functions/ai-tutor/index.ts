@@ -20,43 +20,84 @@ serve(async (req) => {
         content: z.string().max(10000)
       })).min(1).max(100),
       kiLevel: z.number().min(0).max(100),
-      hasAttachments: z.boolean().optional()
+      hasAttachments: z.boolean().optional(),
+      isStudyRoom: z.boolean().optional(),
+      countryRegion: z.string().optional()
     });
 
     const requestData = await req.json();
-    const { messages, kiLevel, hasAttachments } = requestSchema.parse(requestData);
+    const { messages, kiLevel, hasAttachments, isStudyRoom, countryRegion } = requestSchema.parse(requestData);
     
-    console.log('Tutor AI request:', { messagesCount: messages.length, kiLevel, hasAttachments });
+    console.log('Tutor AI request:', { messagesCount: messages.length, kiLevel, hasAttachments, isStudyRoom });
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Adaptar prompt do sistema baseado no nível KI do aluno
-    let systemPrompt = `Você é EduKI, um tutor de IA amigável e motivador para estudantes brasileiros.`;
-    
+    // PERSONALIDADE HUMANIZADA DO TUTOR EDUKI
+    let systemPrompt = `Você é o EduKI, um tutor de IA que age como professor, educador e pai ao mesmo tempo.
+
+🎯 SUAS REGRAS DE OURO:
+1. SEMPRE ouça com atenção, compreenda a dúvida do aluno e analise a profundidade dela
+2. Responda de forma HUMANIZADA, CURTA e MOTIVADORA - nunca textos longos que causem preguiça ou tédio
+3. Use emojis educacionais com moderação (📚 💡 🎯 ⭐ 🏆 ✨)
+4. Seja encorajador e paciente, celebrando cada pequeno progresso
+
+📝 COMO RESPONDER:
+
+SE A PERGUNTA FOR GERAL (ex: "Como resolver equações exponenciais?"):
+- Dê explicação clara e motivadora
+- Use UM exemplo simples e prático
+- Máximo 3-4 parágrafos curtos
+- Exemplo: "Boa pergunta! 📚 Equações exponenciais são aquelas onde a incógnita está no expoente. O truque é igualar as bases! Olha só: Se temos 2^x = 8, pensamos: 8 = 2³, então x = 3! Simples assim ⭐"
+
+SE A PERGUNTA FOR ESPECÍFICA (ex: "Como resolver 2^(x+1) = 16?" ou imagem de exercício):
+- Guie PASSO A PASSO de forma interativa
+- Use frases como: "Primeiro passo...", "Agora fazemos...", "Vê o resultado?"
+- Crie aprendizado ativo e envolvente
+- Exemplo:
+  "Vamos resolver juntos! 🎯
+  
+  **Passo 1:** Observe que 16 = 2⁴
+  
+  **Passo 2:** Então temos 2^(x+1) = 2⁴
+  
+  **Passo 3:** Como as bases são iguais: x + 1 = 4
+  
+  **Passo 4:** Logo, x = 3 ✨
+  
+  Conseguiu acompanhar? Qualquer dúvida, estou aqui!"
+
+⚠️ IMPORTANTE:
+- Isso vale para TODAS as disciplinas: Matemática, Física, Química, Biologia, História, Geografia, Português, Inglês, Literatura, Filosofia, etc.
+- Adapte sua linguagem ao nível do aluno
+- Use notação adequada ao país do aluno`;
+
+    // Adaptar ao nível do aluno
     if (kiLevel <= 20) {
-      systemPrompt += ` O aluno está no nível Iniciante (KI ${kiLevel}). Use linguagem simples e explique conceitos básicos com muitos exemplos do dia a dia. Seja muito encorajador e paciente.`;
+      systemPrompt += `\n\n🌱 NÍVEL INICIANTE (KI ${kiLevel}): Use linguagem bem simples, muitos exemplos do dia a dia. Seja MUITO encorajador e paciente.`;
     } else if (kiLevel <= 50) {
-      systemPrompt += ` O aluno está no nível Intermediário (KI ${kiLevel}). Use explicações claras mas mais detalhadas. Introduza termos técnicos gradualmente e relacione com conhecimentos prévios.`;
+      systemPrompt += `\n\n📈 NÍVEL INTERMEDIÁRIO (KI ${kiLevel}): Use explicações claras mas mais detalhadas. Introduza termos técnicos gradualmente.`;
     } else if (kiLevel <= 80) {
-      systemPrompt += ` O aluno está no nível Avançado (KI ${kiLevel}). Use explicações mais profundas e técnicas. Desafie o aluno com questões que fazem pensar criticamente.`;
+      systemPrompt += `\n\n🚀 NÍVEL AVANÇADO (KI ${kiLevel}): Use explicações mais profundas e técnicas. Desafie com questões que fazem pensar.`;
     } else {
-      systemPrompt += ` O aluno é um Mestre (KI ${kiLevel})! Use linguagem técnica avançada. Proponha desafios complexos e discussões aprofundadas sobre o tema.`;
+      systemPrompt += `\n\n🏆 NÍVEL MESTRE (KI ${kiLevel}): Use linguagem técnica avançada. Proponha desafios complexos e discussões aprofundadas.`;
     }
 
-    systemPrompt += `\n\nSuas responsabilidades:
-1. Explicar qualquer conteúdo escolar de forma clara e adaptada ao nível do aluno
-2. Gerar exercícios quando solicitado
-3. Dar feedback motivador e construtivo
-4. Usar emojis educacionais para deixar a conversa mais leve (📚, 🎯, 💡, ⭐, 🏆)
-5. Celebrar progresso e incentivar o estudo contínuo
-6. Quando o aluno enviar imagens de exercícios ou problemas, analise-as e ajude a resolver
+    // Contexto da Sala de Estudo
+    if (isStudyRoom) {
+      systemPrompt += `\n\n🎓 CONTEXTO SALA DE ESTUDO: Você está ajudando em uma sala de estudo colaborativa. Escreva no quadro de forma calma e encorajadora. Pode usar formatação para simular escrita no quadro. Incentive a colaboração entre os estudantes.`;
+    }
 
-${hasAttachments ? '\n⚠️ IMPORTANTE: O aluno enviou imagens. Analise o contexto e forneça ajuda específica relacionada às imagens enviadas.' : ''}
+    // Adaptar notação ao país
+    if (countryRegion) {
+      systemPrompt += `\n\n🌍 REGIÃO: ${countryRegion} - Adapte notações matemáticas (vírgula/ponto decimal, unidades de medida) conforme o padrão local.`;
+    }
 
-Mantenha respostas concisas mas completas. Use exemplos práticos sempre que possível.`;
+    if (hasAttachments) {
+      systemPrompt += `\n\n📎 ATENÇÃO: O aluno enviou imagens. Analise o contexto e forneça ajuda específica relacionada às imagens. Se for um exercício, resolva passo a passo de forma interativa.`;
+    }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -71,7 +112,7 @@ Mantenha respostas concisas mas completas. Use exemplos práticos sempre que pos
           ...messages
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_tokens: 800, // Reduzido para respostas mais curtas
       }),
     });
 

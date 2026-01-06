@@ -43,6 +43,34 @@ jobs:
       - name: Sync Capacitor (copia web + plugins Unity Ads)
         run: npx cap sync android
 
+      - name: Copiar ícones personalizados do EduKI
+        run: |
+          # Criar diretórios se não existirem
+          mkdir -p android/app/src/main/res/mipmap-mdpi
+          mkdir -p android/app/src/main/res/mipmap-hdpi
+          mkdir -p android/app/src/main/res/mipmap-xhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+          
+          # Copiar ícone 192x192 para todas as densidades (redimensiona automaticamente)
+          # O ícone original será usado como base
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+          
+          # Copiar para outras densidades (Android escala automaticamente)
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+          
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+          
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+          
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp public/icon-192x192.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+
       - name: Tornar Gradle executável
         run: cd android && chmod +x ./gradlew
 

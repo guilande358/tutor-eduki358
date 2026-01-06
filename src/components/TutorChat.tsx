@@ -9,6 +9,9 @@ import { useToast } from "@/components/ui/use-toast";
 import { Send, Bot, User, Loader2, Paperclip, X, FileImage, Maximize2, Minimize2 } from "lucide-react";
 import ConversationDrawer from "@/components/ConversationDrawer";
 import MathRenderer from "@/components/MathRenderer";
+import CreditsDisplay from "@/components/CreditsDisplay";
+import NoCreditsDialog from "@/components/NoCreditsDialog";
+import { useCredits } from "@/hooks/useCredits";
 
 interface Message {
   role: "user" | "assistant";
@@ -27,9 +30,10 @@ interface Attachment {
 interface TutorChatProps {
   userId: string;
   kiLevel: number;
+  onShowPremium?: () => void;
 }
 
-const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
+const TutorChat = ({ userId, kiLevel, onShowPremium }: TutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,6 +41,11 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
   const [uploading, setUploading] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [showNoCreditsDialog, setShowNoCreditsDialog] = useState(false);
+  const [userXP, setUserXP] = useState(0);
+  
+  // Sistema de créditos
+  const { hasCredits, useCredit, addCredits, isPremium, refetch: refetchCredits } = useCredits(userId);
   
   // Ref para acessar o viewport interno do ScrollArea (shadcn-ui)
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -46,7 +55,17 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
 
   useEffect(() => {
     loadChatHistory();
+    loadUserXP();
   }, [userId, currentConversationId]);
+
+  const loadUserXP = async () => {
+    const { data } = await supabase
+      .from('user_progress')
+      .select('xp')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (data) setUserXP(data.xp || 0);
+  };
 
   // Scroll automático corrigido – vai sempre pro final quando nova mensagem chega
   useEffect(() => {
@@ -265,6 +284,12 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
   const sendMessage = async () => {
     if ((!input.trim() && selectedFiles.length === 0) || loading) return;
 
+    // Verificar créditos antes de enviar (exceto Premium)
+    if (!isPremium && !hasCredits) {
+      setShowNoCreditsDialog(true);
+      return;
+    }
+
     const userMessage: Message = { 
       role: "user", 
       content: input || "📎 Enviou imagens"
@@ -328,6 +353,12 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
         content: data.reply,
       };
       setMessages((prev) => [...prev, assistantMessage]);
+      
+      // Consumir 1 crédito após resposta bem-sucedida
+      if (!isPremium) {
+        await useCredit();
+        refetchCredits();
+      }
       
       await saveMessage(assistantMessage);
       
@@ -412,18 +443,21 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
                 <p className="text-xs text-white/80">Sempre pronto para te ajudar</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsFullScreen(!isFullScreen)}
-              className="text-white hover:bg-white/20"
-            >
-              {isFullScreen ? (
-                <Minimize2 className="w-5 h-5" />
-              ) : (
-                <Maximize2 className="w-5 h-5" />
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <CreditsDisplay userId={userId} compact />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsFullScreen(!isFullScreen)}
+                className="text-white hover:bg-white/20"
+              >
+                {isFullScreen ? (
+                  <Minimize2 className="w-5 h-5" />
+                ) : (
+                  <Maximize2 className="w-5 h-5" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -558,6 +592,30 @@ const TutorChat = ({ userId, kiLevel }: TutorChatProps) => {
           </div>
         </div>
       </Card>
+
+      {/* Dialog de créditos esgotados */}
+      <NoCreditsDialog
+        open={showNoCreditsDialog}
+        onOpenChange={setShowNoCreditsDialog}
+        onWatchAd={() => {
+          // Adicionar +2 créditos via anúncio
+          addCredits(2);
+          refetchCredits();
+          toast({
+            title: "Créditos adicionados! 🎉",
+            description: "+2 créditos por assistir o anúncio",
+          });
+        }}
+        onConvertXP={() => {
+          // Navegar para conversão de XP
+          toast({
+            title: "Conversão de XP",
+            description: "Vá ao perfil para converter XP em créditos",
+          });
+        }}
+        onViewPremium={() => onShowPremium?.()}
+        xp={userXP}
+      />
     </div>
   );
 };
