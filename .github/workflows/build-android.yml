@@ -8,6 +8,7 @@ on:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 60  # Aumenta timeout pra builds pesados
 
     steps:
       - name: Checkout do código
@@ -37,56 +38,33 @@ jobs:
       - name: Build da web (dist)
         run: npm run build
 
-      - name: Adicionar plataforma Android (cria a pasta android/)
+      - name: Limpar projeto Android (importante após mudanças grandes)
+        run: cd android && ./gradlew clean
+
+      - name: Adicionar plataforma Android
         run: npx cap add android
 
-      - name: Sync Capacitor (copia web + plugins Unity Ads)
+      - name: Sync Capacitor
         run: npx cap sync android
-
-      - name: Copiar ícones personalizados do EduKI
-        run: |
-          # Criar diretórios se não existirem
-          mkdir -p android/app/src/main/res/mipmap-mdpi
-          mkdir -p android/app/src/main/res/mipmap-hdpi
-          mkdir -p android/app/src/main/res/mipmap-xhdpi
-          mkdir -p android/app/src/main/res/mipmap-xxhdpi
-          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
-          
-          # Copiar ícone 192x192 para todas as densidades (redimensiona automaticamente)
-          # O ícone original será usado como base
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
-          
-          # Copiar para outras densidades (Android escala automaticamente)
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-          
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-          
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-          
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-          cp public/icon-192x192.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
 
       - name: Tornar Gradle executável
         run: cd android && chmod +x ./gradlew
 
-      - name: Build APK debug
-        run: cd android && ./gradlew assembleDebug
+      - name: Build APK debug com stacktrace (pra ver o erro real)
+        run: cd android && ./gradlew assembleDebug --stacktrace --info
 
       - name: Build AAB release
-        run: cd android && ./gradlew bundleRelease
+        run: cd android && ./gradlew bundleRelease --stacktrace
 
       - name: Upload APK debug
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: EduKI-debug-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload AAB release
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: EduKI-release-AAB
