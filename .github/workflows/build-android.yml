@@ -8,7 +8,7 @@ on:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 60  # Aumenta timeout pra builds pesados
+    timeout-minutes: 60
 
     steps:
       - name: Checkout do código
@@ -38,9 +38,6 @@ jobs:
       - name: Build da web (dist)
         run: npm run build
 
-      - name: Limpar projeto Android (importante após mudanças grandes)
-        run: cd android && ./gradlew clean
-
       - name: Adicionar plataforma Android
         run: npx cap add android
 
@@ -50,7 +47,7 @@ jobs:
       - name: Tornar Gradle executável
         run: cd android && chmod +x ./gradlew
 
-      - name: Build APK debug com stacktrace (pra ver o erro real)
+      - name: Build APK debug com stacktrace
         run: cd android && ./gradlew assembleDebug --stacktrace --info
 
       - name: Build AAB release
