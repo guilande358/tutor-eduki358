@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
+import { Capacitor } from "@capacitor/core";
 
 interface MediaState {
   isVideoEnabled: boolean;
@@ -25,6 +26,7 @@ export const useMediaDevices = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
+  const isNative = Capacitor.isNativePlatform();
 
   const checkPermissions = async () => {
     try {
@@ -36,7 +38,7 @@ export const useMediaDevices = () => {
         audio: audioPermission.state === "granted",
       });
     } catch (error) {
-      // Permissions API not fully supported
+      // Permissions API not fully supported (common in native apps)
       console.log("Permissions API not supported:", error);
     }
   };
@@ -50,6 +52,21 @@ export const useMediaDevices = () => {
       }
     };
   }, []);
+
+  const getPermissionErrorMessage = (errorName: string): string => {
+    if (errorName === "NotAllowedError" || errorName === "PermissionDeniedError") {
+      return isNative 
+        ? "Ative câmera e microfone nas configurações do app para usar a Sala de Estudo."
+        : "Permissão negada. Habilite nas configurações do navegador.";
+    }
+    if (errorName === "NotFoundError") {
+      return "Câmera não encontrada neste dispositivo.";
+    }
+    if (errorName === "NotReadableError") {
+      return "Câmera está sendo usada por outro aplicativo.";
+    }
+    return "Não foi possível acessar a câmera.";
+  };
 
   const startCamera = useCallback(async () => {
     try {
@@ -76,14 +93,13 @@ export const useMediaDevices = () => {
       console.error("Error accessing camera:", error);
       toast({
         title: "Erro ao acessar câmera",
-        description: error.name === "NotAllowedError" 
-          ? "Permissão negada. Habilite nas configurações do navegador."
-          : "Não foi possível acessar a câmera",
+        description: getPermissionErrorMessage(error.name),
         variant: "destructive",
+        duration: 6000,
       });
       return null;
     }
-  }, [toast]);
+  }, [toast, isNative]);
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -103,6 +119,21 @@ export const useMediaDevices = () => {
       await startCamera();
     }
   }, [mediaState.isVideoEnabled, startCamera, stopCamera]);
+
+  const getMicPermissionErrorMessage = (errorName: string): string => {
+    if (errorName === "NotAllowedError" || errorName === "PermissionDeniedError") {
+      return isNative 
+        ? "Ative câmera e microfone nas configurações do app para usar a Sala de Estudo."
+        : "Permissão negada. Habilite nas configurações do navegador.";
+    }
+    if (errorName === "NotFoundError") {
+      return "Microfone não encontrado neste dispositivo.";
+    }
+    if (errorName === "NotReadableError") {
+      return "Microfone está sendo usado por outro aplicativo.";
+    }
+    return "Não foi possível acessar o microfone.";
+  };
 
   const startMicrophone = useCallback(async () => {
     try {
@@ -131,14 +162,13 @@ export const useMediaDevices = () => {
       console.error("Error accessing microphone:", error);
       toast({
         title: "Erro ao acessar microfone",
-        description: error.name === "NotAllowedError"
-          ? "Permissão negada. Habilite nas configurações do navegador."
-          : "Não foi possível acessar o microfone",
+        description: getMicPermissionErrorMessage(error.name),
         variant: "destructive",
+        duration: 6000,
       });
       return null;
     }
-  }, [stream, toast]);
+  }, [stream, toast, isNative]);
 
   const stopMicrophone = useCallback(() => {
     if (stream) {

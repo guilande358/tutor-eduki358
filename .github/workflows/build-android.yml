@@ -35,11 +35,40 @@ jobs:
       - name: Instalar Capacitor CLI globalmente
         run: npm install -g @capacitor/cli
 
+      - name: Instalar ImageMagick para gerar ícones
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+
       - name: Build da web (dist)
         run: npm run build
 
       - name: Adicionar plataforma Android
         run: npx cap add android
+
+      - name: Gerar ícones personalizados do EduKI
+        run: |
+          mkdir -p temp-icons
+          convert public/icon-512x512.png -resize 48x48 temp-icons/ic_launcher_mdpi.png
+          convert public/icon-512x512.png -resize 72x72 temp-icons/ic_launcher_hdpi.png
+          convert public/icon-512x512.png -resize 96x96 temp-icons/ic_launcher_xhdpi.png
+          convert public/icon-512x512.png -resize 144x144 temp-icons/ic_launcher_xxhdpi.png
+          convert public/icon-512x512.png -resize 192x192 temp-icons/ic_launcher_xxxhdpi.png
+
+      - name: Copiar ícones para pastas mipmap do Android
+        run: |
+          cp temp-icons/ic_launcher_mdpi.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp temp-icons/ic_launcher_hdpi.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp temp-icons/ic_launcher_xhdpi.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp temp-icons/ic_launcher_xxhdpi.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp temp-icons/ic_launcher_xxxhdpi.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          cp temp-icons/ic_launcher_mdpi.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+          cp temp-icons/ic_launcher_hdpi.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+          cp temp-icons/ic_launcher_xhdpi.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+          cp temp-icons/ic_launcher_xxhdpi.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+          cp temp-icons/ic_launcher_xxxhdpi.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+
+      - name: Adicionar permissões de câmera e microfone no AndroidManifest.xml
+        run: |
+          sed -i 's|</manifest>|    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n</manifest>|' android/app/src/main/AndroidManifest.xml
 
       - name: Sync Capacitor
         run: npx cap sync android
