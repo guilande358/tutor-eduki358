@@ -15,6 +15,7 @@ import VideoGrid from "@/components/study-room/VideoGrid";
 import Footer from "@/components/Footer";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
+import { useNativePermissions } from "@/hooks/useNativePermissions";
 import { motion } from "framer-motion";
 
 interface StudyRoomPageProps {
@@ -63,22 +64,41 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
     localStream,
   });
 
+  // Native permissions hook
+  const { isNative, requestMediaPermissions } = useNativePermissions();
+
   useEffect(() => {
     if (codeFromUrl) {
       joinRoomByCode(codeFromUrl);
     }
   }, [codeFromUrl]);
 
-  // Start camera when entering room
+  // Request permissions and start camera when entering room
   useEffect(() => {
     if (room) {
-      startCamera().catch(console.error);
+      const initMedia = async () => {
+        // On native platforms, request permissions first
+        if (isNative) {
+          const granted = await requestMediaPermissions();
+          if (!granted) {
+            toast({
+              title: "Permissões necessárias",
+              description: "Ative câmera e microfone nas configurações do app para usar a Sala de Estudo.",
+              variant: "destructive",
+              duration: 8000,
+            });
+            return;
+          }
+        }
+        await startCamera();
+      };
+      initMedia().catch(console.error);
     }
     return () => {
       stopCamera();
       disconnectWebRTC();
     };
-  }, [room?.id]);
+  }, [room?.id, isNative]);
 
   // Connect to participants when room is joined
   useEffect(() => {
