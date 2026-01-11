@@ -1,73 +1,158 @@
-# Welcome to your Lovable project
-
-## Project info
+# EduKI - Tutor de Estudos com IA
 
 **URL**: https://lovable.dev/projects/8eedd528-faf5-473b-a997-f111735cf9e1
 
-## How can I edit this code?
+## 🚀 Tecnologias
 
-There are several ways of editing your application.
+- Vite + React + TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (Auth, Database, Edge Functions)
+- Capacitor (Android/iOS)
+- PWA com Service Worker
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/8eedd528-faf5-473b-a997-f111735cf9e1) and start prompting.
+## 📱 App Nativo (Capacitor)
 
-Changes made via Lovable will be committed automatically to this repo.
+### Estrutura de Assets
 
-**Use your preferred IDE**
+Coloque seus arquivos na pasta `resources/`:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```
+resources/
+├── icon-only.png          # 1024x1024 px, PNG com transparência (ícone principal)
+├── icon-foreground.png    # 1024x1024 px, foreground para adaptive icons (Android)
+├── icon-background.png    # 1024x1024 px, background para adaptive icons
+├── splash.png             # 2732x2732 px, splash screen (centralizada)
+└── splash-dark.png        # 2732x2732 px, splash screen modo escuro (opcional)
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Gerar Ícones e Splash Screen
 
-Follow these steps:
+```bash
+# Gerar assets para todas as plataformas
+npm run generate:assets
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Ou apenas para uma plataforma
+npm run generate:assets:android
+npm run generate:assets:ios
+```
+
+### Build Local (Android)
+
+```bash
+# 1. Build do projeto web
+npm run build
+
+# 2. Adicionar plataforma Android (primeira vez)
+npx cap add android
+
+# 3. Gerar assets de ícones e splash
+npm run generate:assets:android
+
+# 4. Sincronizar com projeto nativo
+npm run cap:sync:android
+
+# 5. Abrir no Android Studio
+npx cap open android
+# No Android Studio: Build > Generate Signed Bundle / APK
+```
+
+### Build Local (iOS)
+
+```bash
+# 1. Build do projeto web
+npm run build
+
+# 2. Adicionar plataforma iOS (primeira vez)
+npx cap add ios
+
+# 3. Gerar assets de ícones e splash
+npm run generate:assets:ios
+
+# 4. Sincronizar com projeto nativo
+npm run cap:sync:ios
+
+# 5. Abrir no Xcode
+npx cap open ios
+# No Xcode: Product > Archive
+```
+
+### Build Automático (GitHub Actions)
+
+O workflow em `.github/workflows/build-android.yml` gera automaticamente:
+- **APK debug**: `EduKI-debug-APK`
+- **AAB release**: `EduKI-release-AAB`
+
+Os ícones e splash screens são gerados automaticamente a partir de `resources/`.
+
+---
+
+## 🔧 Desenvolvimento
+
+### Instalação
+
+```bash
+# Clone o repositório
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Instale as dependências
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Inicie o servidor de desenvolvimento
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Scripts Disponíveis
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm run dev              # Servidor de desenvolvimento
+npm run build            # Build de produção
+npm run generate:assets  # Gerar ícones e splash para todas as plataformas
+npm run cap:sync         # Sincronizar com plataformas nativas
+```
 
-**Use GitHub Codespaces**
+### Hot Reload no Dispositivo
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Para desenvolvimento com hot-reload em dispositivo físico:
 
-## What technologies are used for this project?
+1. Edite `capacitor.config.ts` e descomente as linhas do servidor:
+```typescript
+server: {
+  url: 'https://8eedd528-faf5-473b-a997-f111735cf9e1.lovableproject.com?forceHideBadge=true',
+  cleartext: true
+}
+```
 
-This project is built with:
+2. Sincronize e execute:
+```bash
+npx cap sync
+npx cap run android  # ou ios
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+---
 
-## How can I deploy this project?
+## 📖 Documentação Adicional
 
-Simply open [Lovable](https://lovable.dev/projects/8eedd528-faf5-473b-a997-f111735cf9e1) and click on Share -> Publish.
+- [Guia Completo de Setup Nativo](./NATIVE_APP_SETUP.md)
+- [Documentação Capacitor](https://capacitorjs.com/docs)
+- [Capacitor Assets](https://capacitorjs.com/docs/guides/splash-screens-and-icons)
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## 🚀 Deploy
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Web (PWA)
+Abra [Lovable](https://lovable.dev/projects/8eedd528-faf5-473b-a997-f111735cf9e1) e clique em Share → Publish.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Android/iOS
+Veja a seção "App Nativo" acima ou o arquivo [NATIVE_APP_SETUP.md](./NATIVE_APP_SETUP.md).
+
+---
+
+## 🔗 Domínio Personalizado
+
+Para conectar um domínio, navegue até Project > Settings > Domains e clique em Connect Domain.
+
+Mais informações: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
