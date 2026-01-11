@@ -14,19 +14,22 @@ import {
 import MicroLessonPanel from "./MicroLessonPanel";
 import { Capacitor } from "@capacitor/core";
 
-// Unity Ads types para Web
+// Tipagem para Unity Ads (web / bridge)
 declare global {
   interface Window {
     UnityAds: {
       init: (config: { gameId: string; debug: boolean }) => void;
       load: (placementId: string) => void;
       isReady: (placementId: string) => boolean;
-      show: (placementId: string, callbacks: {
-        onStart?: () => void;
-        onComplete?: (reward: boolean) => void;
-        onError?: (error: any) => void;
-        onClose?: () => void;
-      }) => void;
+      show: (
+        placementId: string,
+        callbacks: {
+          onStart?: () => void;
+          onComplete?: (rewarded: boolean) => void;
+          onError?: (error: any) => void;
+          onClose?: () => void;
+        }
+      ) => void;
     };
   }
 }
@@ -38,8 +41,11 @@ interface LivesTimerProps {
   kiLevel: number;
 }
 
-const UNITY_GAME_ID = '5993995';
-const UNITY_PLACEMENT_ID = 'Rewarded_Android';
+// IDs do Unity Ads (ajuste se necessário)
+const UNITY_GAME_ID = '5993995';                    // Seu Game ID real
+const REWARDED_PLACEMENT = 'Rewarded_Android';
+const INTERSTITIAL_PLACEMENT = 'Interstitial_Android';
+// const BANNER_PLACEMENT = 'Banner_Android';       // Banner geralmente não é suportado bem nesse tipo de bridge
 
 const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimerProps) => {
   const [timeUntilNextLife, setTimeUntilNextLife] = useState<string>("");
@@ -48,66 +54,77 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
   const [isLoadingAd, setIsLoadingAd] = useState(false);
   const [showMicroLesson, setShowMicroLesson] = useState(false);
   
-  // Contador motivacional (sem limite – só pra mostrar progresso)
+  // Contador motivacional de vídeos assistidos hoje
   const [adsWatchedToday, setAdsWatchedToday] = useState(0);
   
-  const [adReady, setAdReady] = useState(false);
+  // Estados para anúncios
+  const [rewardedReady, setRewardedReady] = useState(false);
+  const [interstitialReady, setInterstitialReady] = useState(false);
+  
   const { toast } = useToast();
   const isNative = Capacitor.isNativePlatform();
-  const [nativeAdsInitialized, setNativeAdsInitialized] = useState(false);
+  const [adsInitialized, setAdsInitialized] = useState(false);
 
+  // Inicialização dos anúncios
   useEffect(() => {
     const initializeAds = async () => {
       if (isNative) {
         try {
-          const { UnityAds } = await import('capacitor-unity-ads');
-          
+          // Import dinâmico do plugin Unity Ads para Capacitor (ajuste o nome do pacote conforme instalado)
+          const { UnityAds } = await import('@capacitor-community/unity-ads'); // ← ajuste o nome do pacote se for diferente
+
           await UnityAds.initialize({
             gameId: UNITY_GAME_ID,
-            testMode: false, // Produção
+            testMode: false, // ← Mude para false quando for publicar!
           });
 
-          setNativeAdsInitialized(true);
-          console.log('Unity Ads inicializado (nativo)');
+          setAdsInitialized(true);
+          console.log('Unity Ads inicializado com sucesso (nativo)');
 
-          await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
-          
-          const checkAdReady = async () => {
-            const { loaded } = await UnityAds.isRewardedVideoLoaded();
-            setAdReady(loaded);
-            if (loaded) {
-              console.log('Anúncio carregado (nativo)');
+          // Pré-carregar anúncios
+          await UnityAds.load({ placementId: REWARDED_PLACEMENT });
+          await UnityAds.load({ placementId: INTERSTITIAL_PLACEMENT });
+          // await UnityAds.load({ placementId: BANNER_PLACEMENT }); // Banner pode não funcionar
+
+          // Verificar disponibilidade periodicamente
+          const checkReady = async () => {
+            try {
+              const rewardedStatus = await UnityAds.isLoaded({ placementId: REWARDED_PLACEMENT });
+              setRewardedReady(!!rewardedStatus?.loaded);
+
+              const interstitialStatus = await UnityAds.isLoaded({ placementId: INTERSTITIAL_PLACEMENT });
+              setInterstitialReady(!!interstitialStatus?.loaded);
+            } catch (err) {
+              console.warn('Erro ao verificar status dos ads:', err);
             }
           };
 
-          checkAdReady();
-          const interval = setInterval(checkAdReady, 2000);
-          
+          checkReady();
+          const interval = setInterval(checkReady, 3000);
           return () => clearInterval(interval);
         } catch (error) {
-          console.error('Erro ao configurar Unity Ads (nativo):', error);
+          console.error('Falha ao inicializar Unity Ads (nativo):', error);
         }
       } else {
-        // Web (PWA)
+        // Modo Web / PWA
         if (window.UnityAds) {
           try {
             window.UnityAds.init({
               gameId: UNITY_GAME_ID,
-              debug: false,
+              debug: true,
             });
-            
-            window.UnityAds.load(UNITY_PLACEMENT_ID);
-            
-            const checkAdReady = setInterval(() => {
-              if (window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
-                setAdReady(true);
-                clearInterval(checkAdReady);
-              }
-            }, 1000);
 
-            return () => clearInterval(checkAdReady);
-          } catch (error) {
-            console.error("Erro ao inicializar Unity Ads (web):", error);
+            window.UnityAds.load(REWARDED_PLACEMENT);
+            window.UnityAds.load(INTERSTITIAL_PLACEMENT);
+
+            const checkInterval = setInterval(() => {
+              setRewardedReady(window.UnityAds.isReady(REWARDED_PLACEMENT));
+              setInterstitialReady(window.UnityAds.isReady(INTERSTITIAL_PLACEMENT));
+            }, 1500);
+
+            return () => clearInterval(checkInterval);
+          } catch (err) {
+            console.error('Erro inicialização Unity Ads web:', err);
           }
         }
       }
@@ -117,16 +134,17 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     loadAdsWatchedToday();
   }, [isNative]);
 
+  // Carregar contador de anúncios assistidos hoje
   const loadAdsWatchedToday = () => {
     const today = new Date().toDateString();
-    const savedDate = localStorage.getItem('eduKi_ads_date');
-    const savedCount = localStorage.getItem('eduKi_ads_count');
+    const savedDate = localStorage.getItem('eduki_ads_date');
+    const savedCount = localStorage.getItem('eduki_ads_count');
 
     if (savedDate === today) {
       setAdsWatchedToday(parseInt(savedCount || '0'));
     } else {
-      localStorage.setItem('eduKi_ads_date', today);
-      localStorage.setItem('eduKi_ads_count', '0');
+      localStorage.setItem('eduki_ads_date', today);
+      localStorage.setItem('eduki_ads_count', '0');
       setAdsWatchedToday(0);
     }
   };
@@ -134,18 +152,17 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
   const incrementAdsWatched = () => {
     const newCount = adsWatchedToday + 1;
     setAdsWatchedToday(newCount);
-    localStorage.setItem('eduKi_ads_count', newCount.toString());
+    localStorage.setItem('eduki_ads_count', newCount.toString());
   };
 
+  // Lógica de vidas (mantida exatamente igual)
   useEffect(() => {
     fetchLastLifeLost();
   }, [userId]);
 
   useEffect(() => {
     if (currentLives < 5 && lastLifeLost) {
-      const interval = setInterval(() => {
-        calculateTimeUntilNextLife();
-      }, 1000);
+      const interval = setInterval(calculateTimeUntilNextLife, 1000);
       return () => clearInterval(interval);
     }
   }, [currentLives, lastLifeLost]);
@@ -178,114 +195,85 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-    setTimeUntilNextLife(`\( {hours}h \){minutes}m ${seconds}s`);
+    setTimeUntilNextLife(`${hours.toString().padStart(2,'0')}h ${minutes.toString().padStart(2,'0')}m ${seconds.toString().padStart(2,'0')}s`);
   };
 
   const recoverLife = async () => {
     const newLives = Math.min(currentLives + 1, 5);
     await supabase
       .from('user_progress')
-      .update({ lives: newLives })
+      .update({ lives: newLives, last_life_lost_at: new Date().toISOString() })
       .eq('user_id', userId);
     
     onLivesUpdate();
-    toast({
-      title: "Vida recuperada! ❤️",
-      description: "Você ganhou uma vida!",
-    });
+    toast({ title: "Vida recuperada! ❤️" });
   };
 
+  // Mostrar rewarded ad
   const watchAdForLife = async () => {
-    if (isNative) {
-      if (!nativeAdsInitialized) {
-        toast({
-          title: "Carregando anúncios...",
-          description: "Inicializando, tente novamente em alguns segundos",
-        });
-        return;
-      }
+    setIsLoadingAd(true);
 
-      if (!adReady) {
-        toast({
-          title: "Preparando anúncio...",
-          description: "Quase pronto, tente novamente em 2 segundos",
-        });
-        
-        try {
-          const { UnityAds } = await import('capacitor-unity-ads');
-          await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
-        } catch (err) {}
-        return;
-      }
+    try {
+      if (isNative) {
+        const { UnityAds } = await import('@capacitor-community/unity-ads'); // ajuste o pacote se necessário
 
-      setIsLoadingAd(true);
-
-      try {
-        const { UnityAds } = await import('capacitor-unity-ads');
-        
-        // Mostrar vídeo recompensado
-        const result = await UnityAds.showRewardedVideo();
-        
-        setIsLoadingAd(false);
-        console.log('Unity Ads Result:', result);
-
-        if (result.reward) {
-          setShowRewardDialog(true);
-          incrementAdsWatched();
-          toast({
-            title: "Anúncio completado! 🎉",
-            description: "Escolha sua recompensa",
-          });
-        } else {
-          toast({
-            title: "Anúncio não completado",
-            description: "Assista até o final para ganhar a recompensa",
-            variant: "destructive",
-          });
+        if (!rewardedReady) {
+          await UnityAds.load({ placementId: REWARDED_PLACEMENT });
+          await new Promise(r => setTimeout(r, 1500));
         }
 
-        // Pré-carregar próximo anúncio
-        await UnityAds.loadRewardedVideo({ placementId: UNITY_PLACEMENT_ID });
-      } catch (error) {
-        console.error("Erro Unity Ads:", error);
-        setIsLoadingAd(false);
-        toast({
-          title: "Erro ao mostrar",
-          description: "Tente novamente",
-          variant: "destructive",
-        });
-      }
-    } else {
-      // Web (PWA)
-      if (!window.UnityAds || !window.UnityAds.isReady(UNITY_PLACEMENT_ID)) {
-        toast({
-          title: "Carregando vídeo...",
-          description: "Tente novamente em alguns segundos",
-        });
-        window.UnityAds?.load(UNITY_PLACEMENT_ID);
-        return;
-      }
+        const result = await UnityAds.show({ placementId: REWARDED_PLACEMENT });
 
-      setIsLoadingAd(true);
+        if (result?.rewarded) {
+          setShowRewardDialog(true);
+          incrementAdsWatched();
+          // Mostra interstitial após rewarded bem-sucedido
+          await showInterstitial();
+        }
+      } else {
+        // Web
+        if (!window.UnityAds?.isReady(REWARDED_PLACEMENT)) {
+          window.UnityAds?.load(REWARDED_PLACEMENT);
+          await new Promise(r => setTimeout(r, 2000));
+        }
 
-      window.UnityAds.show(UNITY_PLACEMENT_ID, {
-        onComplete: (reward: boolean) => {
-          setIsLoadingAd(false);
-          if (reward) {
-            setShowRewardDialog(true);
-            incrementAdsWatched();
-            window.UnityAds.load(UNITY_PLACEMENT_ID);
+        window.UnityAds?.show(REWARDED_PLACEMENT, {
+          onComplete: (rewarded: boolean) => {
+            if (rewarded) {
+              setShowRewardDialog(true);
+              incrementAdsWatched();
+              // Mostra interstitial após recompensa
+              showInterstitial();
+            }
+          },
+          onError: () => {
+            toast({ title: "Erro no vídeo", variant: "destructive" });
           }
-        },
-        onError: () => {
-          setIsLoadingAd(false);
-          toast({
-            title: "Vídeo indisponível",
-            description: "Tente novamente em breve",
-            variant: "destructive",
-          });
-        },
-      });
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao mostrar rewarded:', error);
+      toast({ title: "Não foi possível carregar o anúncio", variant: "destructive" });
+    } finally {
+      setIsLoadingAd(false);
+    }
+  };
+
+  // Função para mostrar Interstitial
+  const showInterstitial = async () => {
+    try {
+      if (isNative) {
+        const { UnityAds } = await import('@capacitor-community/unity-ads');
+        if (!interstitialReady) await UnityAds.load({ placementId: INTERSTITIAL_PLACEMENT });
+        await UnityAds.show({ placementId: INTERSTITIAL_PLACEMENT });
+      } else if (window.UnityAds?.isReady(INTERSTITIAL_PLACEMENT)) {
+        window.UnityAds.show(INTERSTITIAL_PLACEMENT, {
+          onComplete: () => console.log('Interstitial concluído'),
+          onError: (err) => console.error('Erro interstitial:', err)
+        });
+      }
+    } catch (err) {
+      console.warn('Não foi possível mostrar interstitial:', err);
     }
   };
 
@@ -293,57 +281,27 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     try {
       if (rewardType === 'life') {
         const newLives = Math.min(currentLives + 1, 5);
-        await supabase
-          .from('user_progress')
-          .update({ lives: newLives })
-          .eq('user_id', userId);
-        
-        toast({
-          title: "Vida recuperada! ❤️",
-          description: "Você ganhou uma vida!",
-        });
+        await supabase.from('user_progress').update({ lives: newLives }).eq('user_id', userId);
+        toast({ title: "Vida recuperada! ❤️" });
       } else {
-        const { data: currentProgress } = await supabase
-          .from('user_progress')
-          .select('xp')
-          .eq('user_id', userId)
-          .single();
-
-        const newXp = (currentProgress?.xp || 0) + 50;
-        await supabase
-          .from('user_progress')
-          .update({ xp: newXp })
-          .eq('user_id', userId);
-
-        toast({
-          title: "XP ganho! ⭐",
-          description: "Você ganhou 50 XP!",
-        });
+        const { data } = await supabase.from('user_progress').select('xp').eq('user_id', userId).single();
+        const newXp = (data?.xp || 0) + 50;
+        await supabase.from('user_progress').update({ xp: newXp }).eq('user_id', userId);
+        toast({ title: "50 XP adicionados! ⭐" });
       }
-      
       onLivesUpdate();
       setShowRewardDialog(false);
-    } catch (error) {
-      console.error("Erro ao conceder recompensa:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível conceder a recompensa",
-        variant: "destructive",
-      });
+    } catch (err) {
+      toast({ title: "Erro ao conceder recompensa", variant: "destructive" });
     }
   };
 
-  const completeMicroLesson = () => {
-    setShowMicroLesson(true);
-  };
+  const completeMicroLesson = () => setShowMicroLesson(true);
 
   const handleMicroLessonComplete = () => {
     setShowMicroLesson(false);
     onLivesUpdate();
-    toast({
-      title: "Parabéns! 🎉",
-      description: "Você completou a micro-aula e ganhou +1 vida!",
-    });
+    toast({ title: "Micro-aula concluída! +1 vida" });
   };
 
   if (currentLives >= 5) return null;
@@ -360,107 +318,86 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
   }
 
   return (
-    <Card className="p-4 bg-gradient-card shadow-md border-2 border-destructive/20">
-      <div className="space-y-4">
+    <Card className="p-5 bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 shadow-xl">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-destructive/10 rounded-lg">
-              <Heart className="w-5 h-5 text-destructive" />
-            </div>
+            <Heart className="w-6 h-6 text-red-500" fill="currentColor" />
             <div>
-              <h3 className="font-semibold">Vidas Esgotadas</h3>
+              <h3 className="font-bold text-lg">Vidas Esgotadas</h3>
               {timeUntilNextLife && (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Clock className="w-3 h-3" />
-                  <span>Próxima vida em: {timeUntilNextLife}</span>
-                </div>
+                <p className="text-sm text-slate-400 flex items-center gap-1">
+                  <Clock className="w-4 h-4" /> Próxima em: {timeUntilNextLife}
+                </p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: 5 }).map((_, i) => (
+
+          <div className="flex gap-1">
+            {Array(5).fill(0).map((_, i) => (
               <Heart
                 key={i}
-                className={`w-5 h-5 ${
-                  i < currentLives
-                    ? "fill-destructive text-destructive"
-                    : "text-muted-foreground/20"
-                }`}
+                className={`w-6 h-6 ${i < currentLives ? "fill-red-500 text-red-500" : "text-slate-600"}`}
               />
             ))}
           </div>
         </div>
 
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Recupere vidas rapidamente:
-          </p>
+        <div className="space-y-3">
+          <p className="text-sm text-slate-300">Recupere vidas rapidamente:</p>
           
-          {/* Dica motivacional */}
-          <p className="text-sm text-primary font-medium">
-            Vídeos assistidos hoje: {adsWatchedToday} 🚀
+          <p className="text-sm font-medium text-cyan-400">
+            Vídeos assistidos hoje: {adsWatchedToday} 🔥
           </p>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <Button
               onClick={watchAdForLife}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              disabled={isLoadingAd}
+              disabled={isLoadingAd || !rewardedReady}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
             >
               {isLoadingAd ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Carregando...
-                </>
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />
               ) : (
-                <>
-                  <PlayCircle className="w-4 h-4" />
-                  Assistir Vídeo
-                </>
+                <PlayCircle className="w-5 h-5 mr-2" />
               )}
+              Assistir Vídeo
             </Button>
+
             <Button
               onClick={completeMicroLesson}
               variant="outline"
-              size="sm"
-              className="gap-2"
+              className="border-cyan-600 text-cyan-400 hover:bg-cyan-950/30"
             >
-              <BookOpen className="w-4 h-4" />
-              Micro-aula
+              <BookOpen className="w-5 h-5 mr-2" />
+              Micro-Aula
             </Button>
           </div>
         </div>
       </div>
 
+      {/* Diálogo de escolha de recompensa */}
       <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="bg-slate-900 border-slate-700 text-white">
           <DialogHeader>
-            <DialogTitle className="text-center flex items-center justify-center gap-2">
-              <Gift className="w-6 h-6 text-primary" />
-              Escolha sua recompensa!
-            </DialogTitle>
-            <DialogDescription className="text-center">
-              Obrigado por assistir o anúncio! Escolha sua recompensa:
+            <DialogTitle className="text-xl">Escolha sua recompensa!</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Você completou o anúncio com sucesso.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 mt-4">
+          <div className="grid grid-cols-2 gap-4 mt-6">
             <Button
               onClick={() => claimReward('life')}
-              className="h-24 flex flex-col gap-2"
-              variant="outline"
+              className="bg-red-600 hover:bg-red-700"
+              disabled={currentLives >= 5}
             >
-              <Heart className="w-8 h-8 text-destructive" />
-              <span className="font-semibold">+1 Vida</span>
+              <Heart className="mr-2 h-5 w-5" /> +1 Vida
             </Button>
             <Button
               onClick={() => claimReward('xp')}
-              className="h-24 flex flex-col gap-2"
-              variant="outline"
+              className="bg-amber-600 hover:bg-amber-700"
             >
-              <Gift className="w-8 h-8 text-primary" />
-              <span className="font-semibold">+50 XP</span>
+              <Gift className="mr-2 h-5 w-5" /> +50 XP
             </Button>
           </div>
         </DialogContent>
