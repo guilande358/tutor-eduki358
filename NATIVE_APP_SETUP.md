@@ -14,59 +14,56 @@ Este guia mostra como transformar o EduKI PWA em um aplicativo nativo para iOS e
 - **CocoaPods** instalado (`sudo gem install cocoapods`)
 - **Conta de desenvolvedor Apple** (para publicar na App Store)
 
+## 🎨 Ícones e Splash Screen (IMPORTANTE)
+
+### Estrutura de Assets
+
+O projeto usa `@capacitor/assets` para gerar automaticamente todos os ícones e splash screens. Coloque seus arquivos na pasta `resources/`:
+
+```
+resources/
+├── icon-only.png          # 1024x1024 px, PNG com transparência
+├── icon-foreground.png    # 1024x1024 px, foreground para adaptive icons (Android)
+├── icon-background.png    # 1024x1024 px, background sólido para adaptive icons
+├── splash.png             # 2732x2732 px, imagem centralizada
+└── splash-dark.png        # 2732x2732 px, modo escuro (opcional)
+```
+
+### Gerar Assets Automaticamente
+
+```bash
+# Para todas as plataformas
+npm run generate:assets
+
+# Apenas Android
+npm run generate:assets:android
+
+# Apenas iOS
+npm run generate:assets:ios
+```
+
+### O que é gerado
+
+| Plataforma | Diretório | Conteúdo |
+|------------|-----------|----------|
+| Android | `android/app/src/main/res/mipmap-*` | Ícones em todas as densidades (mdpi a xxxhdpi) |
+| Android | `android/app/src/main/res/drawable*` | Splash screens |
+| iOS | `ios/App/App/Assets.xcassets/AppIcon.appiconset` | Ícones para todos os tamanhos |
+| iOS | `ios/App/App/Assets.xcassets/Splash.imageset` | Splash screens |
+
+### Resolver Ícone Padrão do Capacitor
+
+Se o ícone padrão do Capacitor persistir, o workflow do GitHub Actions já adiciona automaticamente:
+
+```xml
+<!-- No AndroidManifest.xml -->
+<manifest xmlns:tools="http://schemas.android.com/tools" ...>
+  <application tools:replace="android:icon,android:roundIcon" ...>
+```
+
+---
+
 ## 🚀 Passo a Passo de Configuração
-
-### 1. Instalar as Dependências do Capacitor
-
-```bash
-npm install @capacitor/cli @capacitor/core @capacitor/ios @capacitor/android
-```
-
-### 2. Inicializar o Capacitor
-
-```bash
-npx cap init
-```
-
-Configure com os seguintes valores:
-- **App ID**: `app.lovable.8eedd528faf5473ba997f111735cf9e1`
-- **App Name**: `EduKI`
-
-### 3. Configurar o capacitor.config.ts
-
-Edite o arquivo `capacitor.config.ts` na raiz do projeto:
-
-```typescript
-import { CapacitorConfig } from '@capacitor/core';
-
-const config: CapacitorConfig = {
-  appId: 'app.lovable.8eedd528faf5473ba997f111735cf9e1',
-  appName: 'EduKI',
-  webDir: 'dist',
-  server: {
-    androidScheme: 'https'
-  },
-  plugins: {
-    SplashScreen: {
-      launchShowDuration: 2000,
-      backgroundColor: "#6366f1",
-      showSpinner: false
-    }
-  }
-};
-
-export default config;
-```
-
-### 4. Build do Projeto
-
-```bash
-npm run build
-```
-
-### 5. Adicionar Plataformas Nativas
-
-#### Para Android:
 ```bash
 npx cap add android
 ```
@@ -349,7 +346,9 @@ Agora o app carregará o código do servidor local e atualizará automaticamente
 
 - [ ] Build de produção testado (`npm run build`)
 - [ ] Test mode desativado no Unity Ads (`testMode: false`)
-- [ ] Ícones do app atualizados (192x192 e 512x512)
+- [ ] Assets gerados (`npm run generate:assets`)
+- [ ] Ícones personalizados em `resources/` (icon-only.png, icon-foreground.png, icon-background.png)
+- [ ] Splash screen personalizada em `resources/splash.png`
 - [ ] Bundle ID/Package Name configurado no Unity Dashboard
 - [ ] Permissões configuradas (Android: AndroidManifest, iOS: Info.plist)
 - [ ] App assinado com certificado válido
@@ -359,4 +358,13 @@ Agora o app carregará o código do servidor local e atualizará automaticamente
 
 ---
 
-**Pronto!** 🎉 Seu app EduKI agora funciona como aplicativo nativo com Unity Ads totalmente integrado!
+## 📚 Recursos Adicionais
+
+- [Documentação Capacitor](https://capacitorjs.com/docs)
+- [Capacitor Assets (Ícones e Splash)](https://capacitorjs.com/docs/guides/splash-screens-and-icons)
+- [Unity Ads Documentation](https://docs.unity.com/ads/)
+- [Capacitor Unity Ads Plugin](https://github.com/eliazv/capacitor-unity-ads)
+
+---
+
+**Pronto!** 🎉 Seu app EduKI agora funciona como aplicativo nativo com ícones personalizados, splash screen e Unity Ads totalmente integrados!
