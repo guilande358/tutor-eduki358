@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Users, Plus, ArrowRight, Copy, Share2 } from "lucide-react";
+import { Users, Plus, ArrowRight, Copy, Share2, Check } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { motion } from "framer-motion";
+import { useNativeShare } from "@/hooks/useNativeShare";
 
 interface StudyRoomLobbyProps {
   userId: string;
@@ -25,7 +26,9 @@ const StudyRoomLobby = ({ userId, onJoinRoom }: StudyRoomLobbyProps) => {
   const [roomMode, setRoomMode] = useState<"estudo" | "casual">("estudo");
   const [loading, setLoading] = useState(false);
   const [createdRoom, setCreatedRoom] = useState<{ id: string; code: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const { share } = useNativeShare();
 
   const createRoom = async () => {
     setLoading(true);
@@ -115,32 +118,26 @@ const StudyRoomLobby = ({ userId, onJoinRoom }: StudyRoomLobbyProps) => {
     }
   };
 
-  const copyCode = () => {
+  const copyCode = async () => {
     if (createdRoom) {
-      navigator.clipboard.writeText(createdRoom.code);
+      await navigator.clipboard.writeText(createdRoom.code);
+      setCopied(true);
       toast({
         title: "Código copiado!",
         description: createdRoom.code,
       });
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  const shareRoom = () => {
+  const shareRoom = async () => {
     if (createdRoom) {
-      const url = `${window.location.origin}/study-room?code=${createdRoom.code}`;
-      if (navigator.share) {
-        navigator.share({
-          title: "Sala de Estudo EduKI",
-          text: `Entre na minha sala de estudo! Código: ${createdRoom.code}`,
-          url,
-        });
-      } else {
-        navigator.clipboard.writeText(url);
-        toast({
-          title: "Link copiado!",
-          description: "Compartilhe com seus amigos",
-        });
-      }
+      const url = `${window.location.origin}/?code=${createdRoom.code}`;
+      await share({
+        title: "Sala de Estudo EduKI",
+        text: `Entre na minha sala de estudo! Código: ${createdRoom.code}`,
+        url,
+      });
     }
   };
 
@@ -167,8 +164,8 @@ const StudyRoomLobby = ({ userId, onJoinRoom }: StudyRoomLobbyProps) => {
 
           <div className="flex gap-3 mb-6">
             <Button onClick={copyCode} variant="outline" className="flex-1 gap-2">
-              <Copy className="w-4 h-4" />
-              Copiar
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? "Copiado!" : "Copiar"}
             </Button>
             <Button onClick={shareRoom} variant="outline" className="flex-1 gap-2">
               <Share2 className="w-4 h-4" />

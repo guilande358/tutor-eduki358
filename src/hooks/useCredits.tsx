@@ -108,9 +108,41 @@ export const useCredits = (userId: string) => {
     }
   }, [userId]);
 
+  // Initial fetch
   useEffect(() => {
     fetchCredits();
   }, [fetchCredits]);
+
+  // Real-time subscription for automatic updates
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`credits-realtime-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_progress',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const newData = payload.new as any;
+          setCreditsData(prev => ({
+            ...prev,
+            credits: newData.credits ?? prev.credits,
+            creditsUsedThisMonth: newData.credits_used_this_month ?? prev.creditsUsedThisMonth,
+            isPremium: newData.is_premium ?? prev.isPremium,
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   const useCredit = async (): Promise<boolean> => {
     if (creditsData.isPremium) return true;
