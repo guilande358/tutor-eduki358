@@ -6,11 +6,12 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, Bot, User, Loader2, Paperclip, X, FileImage, Maximize2, Minimize2 } from "lucide-react";
+import { Send, Bot, User, Loader2, X, FileImage, Maximize2, Minimize2 } from "lucide-react";
 import ConversationDrawer from "@/components/ConversationDrawer";
 import MathRenderer from "@/components/MathRenderer";
 import CreditsDisplay from "@/components/CreditsDisplay";
 import NoCreditsDialog from "@/components/NoCreditsDialog";
+import AttachmentButton from "@/components/AttachmentButton";
 import { useCredits } from "@/hooks/useCredits";
 
 interface Message {
@@ -561,15 +562,11 @@ const TutorChat = ({ userId, kiLevel, onShowPremium }: TutorChatProps) => {
               className="hidden"
               onChange={handleFileSelect}
             />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={loading || uploading || selectedFiles.length >= 3}
-              title="Anexar imagem (máx. 3)"
-            >
-              <Paperclip className="w-4 h-4" />
-            </Button>
+            <AttachmentButton
+              onImageSelect={(files) => setSelectedFiles(prev => [...prev, ...files].slice(0, 3))}
+              onFormulaInsert={(formula) => setInput(prev => prev + ` $$${formula}$$ `)}
+              disabled={loading || uploading}
+            />
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Clock, PlayCircle, BookOpen, Gift, Loader2 } from "lucide-react";
+import { Coins, Clock, PlayCircle, BookOpen, Gift, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -41,11 +41,9 @@ interface LivesTimerProps {
   kiLevel: number;
 }
 
-// IDs do Unity Ads (ajuste se necessário)
-const UNITY_GAME_ID = '5993995';                    // Seu Game ID real
+// IDs do Unity Ads
+const UNITY_GAME_ID = '5993995';
 const REWARDED_PLACEMENT = 'Rewarded_Android';
-const INTERSTITIAL_PLACEMENT = 'Interstitial_Android';
-// const BANNER_PLACEMENT = 'Banner_Android';       // Banner geralmente não é suportado bem nesse tipo de bridge
 
 const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimerProps) => {
   const [timeUntilNextLife, setTimeUntilNextLife] = useState<string>("");
@@ -59,7 +57,6 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
   
   // Estados para anúncios
   const [rewardedReady, setRewardedReady] = useState(false);
-  const [interstitialReady, setInterstitialReady] = useState(false);
   
   const { toast } = useToast();
   const isNative = Capacitor.isNativePlatform();
@@ -70,30 +67,24 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     const initializeAds = async () => {
       if (isNative) {
         try {
-          // Import dinâmico do plugin Unity Ads para Capacitor (ajuste o nome do pacote conforme instalado)
-          const { UnityAds } = await import('@capacitor-community/unity-ads'); // ← ajuste o nome do pacote se for diferente
+          const { UnityAds } = await import('capacitor-unity-ads');
 
           await UnityAds.initialize({
             gameId: UNITY_GAME_ID,
-            testMode: false, // ← Mude para false quando for publicar!
+            testMode: false,
           });
 
           setAdsInitialized(true);
           console.log('Unity Ads inicializado com sucesso (nativo)');
 
           // Pré-carregar anúncios
-          await UnityAds.load({ placementId: REWARDED_PLACEMENT });
-          await UnityAds.load({ placementId: INTERSTITIAL_PLACEMENT });
-          // await UnityAds.load({ placementId: BANNER_PLACEMENT }); // Banner pode não funcionar
+          await UnityAds.loadRewardedVideo({ placementId: REWARDED_PLACEMENT });
 
           // Verificar disponibilidade periodicamente
           const checkReady = async () => {
             try {
-              const rewardedStatus = await UnityAds.isLoaded({ placementId: REWARDED_PLACEMENT });
-              setRewardedReady(!!rewardedStatus?.loaded);
-
-              const interstitialStatus = await UnityAds.isLoaded({ placementId: INTERSTITIAL_PLACEMENT });
-              setInterstitialReady(!!interstitialStatus?.loaded);
+              const { loaded } = await UnityAds.isRewardedVideoLoaded();
+              setRewardedReady(loaded);
             } catch (err) {
               console.warn('Erro ao verificar status dos ads:', err);
             }
@@ -115,11 +106,9 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
             });
 
             window.UnityAds.load(REWARDED_PLACEMENT);
-            window.UnityAds.load(INTERSTITIAL_PLACEMENT);
 
             const checkInterval = setInterval(() => {
               setRewardedReady(window.UnityAds.isReady(REWARDED_PLACEMENT));
-              setInterstitialReady(window.UnityAds.isReady(INTERSTITIAL_PLACEMENT));
             }, 1500);
 
             return () => clearInterval(checkInterval);
@@ -155,7 +144,7 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     localStorage.setItem('eduki_ads_count', newCount.toString());
   };
 
-  // Lógica de vidas (mantida exatamente igual)
+  // Lógica de vidas
   useEffect(() => {
     fetchLastLifeLost();
   }, [userId]);
@@ -215,20 +204,18 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
 
     try {
       if (isNative) {
-        const { UnityAds } = await import('@capacitor-community/unity-ads'); // ajuste o pacote se necessário
+        const { UnityAds } = await import('capacitor-unity-ads');
 
         if (!rewardedReady) {
-          await UnityAds.load({ placementId: REWARDED_PLACEMENT });
+          await UnityAds.loadRewardedVideo({ placementId: REWARDED_PLACEMENT });
           await new Promise(r => setTimeout(r, 1500));
         }
 
-        const result = await UnityAds.show({ placementId: REWARDED_PLACEMENT });
+        const result = await UnityAds.showRewardedVideo();
 
-        if (result?.rewarded) {
+        if (result?.reward) {
           setShowRewardDialog(true);
           incrementAdsWatched();
-          // Mostra interstitial após rewarded bem-sucedido
-          await showInterstitial();
         }
       } else {
         // Web
@@ -242,8 +229,6 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
             if (rewarded) {
               setShowRewardDialog(true);
               incrementAdsWatched();
-              // Mostra interstitial após recompensa
-              showInterstitial();
             }
           },
           onError: () => {
@@ -259,30 +244,13 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
     }
   };
 
-  // Função para mostrar Interstitial
-  const showInterstitial = async () => {
+  const claimReward = async (rewardType: 'credits' | 'xp') => {
     try {
-      if (isNative) {
-        const { UnityAds } = await import('@capacitor-community/unity-ads');
-        if (!interstitialReady) await UnityAds.load({ placementId: INTERSTITIAL_PLACEMENT });
-        await UnityAds.show({ placementId: INTERSTITIAL_PLACEMENT });
-      } else if (window.UnityAds?.isReady(INTERSTITIAL_PLACEMENT)) {
-        window.UnityAds.show(INTERSTITIAL_PLACEMENT, {
-          onComplete: () => console.log('Interstitial concluído'),
-          onError: (err) => console.error('Erro interstitial:', err)
-        });
-      }
-    } catch (err) {
-      console.warn('Não foi possível mostrar interstitial:', err);
-    }
-  };
-
-  const claimReward = async (rewardType: 'life' | 'xp') => {
-    try {
-      if (rewardType === 'life') {
-        const newLives = Math.min(currentLives + 1, 5);
-        await supabase.from('user_progress').update({ lives: newLives }).eq('user_id', userId);
-        toast({ title: "Vida recuperada! ❤️" });
+      if (rewardType === 'credits') {
+        const { data } = await supabase.from('user_progress').select('credits').eq('user_id', userId).single();
+        const newCredits = (data?.credits || 0) + 2;
+        await supabase.from('user_progress').update({ credits: newCredits }).eq('user_id', userId);
+        toast({ title: "Créditos ganhos! 🪙", description: "+2 créditos" });
       } else {
         const { data } = await supabase.from('user_progress').select('xp').eq('user_id', userId).single();
         const newXp = (data?.xp || 0) + 50;
@@ -298,10 +266,14 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
 
   const completeMicroLesson = () => setShowMicroLesson(true);
 
-  const handleMicroLessonComplete = () => {
+  const handleMicroLessonComplete = async () => {
     setShowMicroLesson(false);
+    // Give 1 credit for micro-lesson
+    const { data } = await supabase.from('user_progress').select('credits').eq('user_id', userId).single();
+    const newCredits = (data?.credits || 0) + 1;
+    await supabase.from('user_progress').update({ credits: newCredits }).eq('user_id', userId);
     onLivesUpdate();
-    toast({ title: "Micro-aula concluída! +1 vida" });
+    toast({ title: "Micro-aula concluída! +1 crédito 🎓" });
   };
 
   if (currentLives >= 5) return null;
@@ -322,29 +294,25 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Heart className="w-6 h-6 text-red-500" fill="currentColor" />
+            <Coins className="w-6 h-6 text-amber-500" />
             <div>
-              <h3 className="font-bold text-lg">Vidas Esgotadas</h3>
+              <h3 className="font-bold text-lg">Créditos Esgotados</h3>
               {timeUntilNextLife && (
                 <p className="text-sm text-slate-400 flex items-center gap-1">
-                  <Clock className="w-4 h-4" /> Próxima em: {timeUntilNextLife}
+                  <Clock className="w-4 h-4" /> Próximo em: {timeUntilNextLife}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="flex gap-1">
-            {Array(5).fill(0).map((_, i) => (
-              <Heart
-                key={i}
-                className={`w-6 h-6 ${i < currentLives ? "fill-red-500 text-red-500" : "text-slate-600"}`}
-              />
-            ))}
+          <div className="flex gap-1 items-center">
+            <Coins className="w-5 h-5 text-amber-400" />
+            <span className="text-amber-400 font-bold">{currentLives}/5</span>
           </div>
         </div>
 
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">Recupere vidas rapidamente:</p>
+          <p className="text-sm text-slate-300">Ganhe créditos rapidamente:</p>
           
           <p className="text-sm font-medium text-cyan-400">
             Vídeos assistidos hoje: {adsWatchedToday} 🔥
@@ -361,7 +329,7 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
               ) : (
                 <PlayCircle className="w-5 h-5 mr-2" />
               )}
-              Assistir Vídeo
+              Vídeo (+2)
             </Button>
 
             <Button
@@ -370,7 +338,7 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
               className="border-cyan-600 text-cyan-400 hover:bg-cyan-950/30"
             >
               <BookOpen className="w-5 h-5 mr-2" />
-              Micro-Aula
+              Micro-aula (+1)
             </Button>
           </div>
         </div>
@@ -387,15 +355,14 @@ const LivesTimer = ({ userId, currentLives, onLivesUpdate, kiLevel }: LivesTimer
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 mt-6">
             <Button
-              onClick={() => claimReward('life')}
-              className="bg-red-600 hover:bg-red-700"
-              disabled={currentLives >= 5}
+              onClick={() => claimReward('credits')}
+              className="bg-amber-600 hover:bg-amber-700"
             >
-              <Heart className="mr-2 h-5 w-5" /> +1 Vida
+              <Coins className="mr-2 h-5 w-5" /> +2 Créditos
             </Button>
             <Button
               onClick={() => claimReward('xp')}
-              className="bg-amber-600 hover:bg-amber-700"
+              className="bg-purple-600 hover:bg-purple-700"
             >
               <Gift className="mr-2 h-5 w-5" /> +50 XP
             </Button>

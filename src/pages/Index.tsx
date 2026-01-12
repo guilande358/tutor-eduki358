@@ -9,7 +9,7 @@ import TutorChat from "@/components/TutorChat";
 import ExercisePanel from "@/components/ExercisePanel";
 import AchievementsPanel from "@/components/AchievementsPanel";
 import WrongAnswersPanel from "@/components/WrongAnswersPanel";
-import LivesTimer from "@/components/LivesTimer";
+import CreditsRecovery from "@/components/CreditsRecovery";
 import ProfileDrawer from "@/components/ProfileDrawer";
 import ProgressScreen from "@/components/progress/ProgressScreen";
 import LearningProfile from "@/components/LearningProfile";
@@ -218,17 +218,14 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Timer de Vidas */}
-        {currentLives < 5 && (
-          <div className="max-w-4xl mx-auto mb-6">
-            <LivesTimer
-              userId={user.id}
-              currentLives={currentLives}
-              onLivesUpdate={fetchUserData}
-              kiLevel={kiLevel}
-            />
-          </div>
-        )}
+        {/* Credits Recovery */}
+        <div className="max-w-4xl mx-auto mb-6">
+          <CreditsRecovery
+            userId={user.id}
+            kiLevel={kiLevel}
+            onCreditsUpdate={fetchUserData}
+          />
+        </div>
 
         {/* Daily Challenge Card */}
         <div className="max-w-4xl mx-auto mb-6">

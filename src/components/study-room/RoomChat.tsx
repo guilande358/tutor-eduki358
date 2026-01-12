@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send } from "lucide-react";
 import MathRenderer from "@/components/MathRenderer";
+import AttachmentButton from "@/components/AttachmentButton";
 
 interface RoomChatProps {
   roomId: string;
@@ -198,19 +199,25 @@ const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
 
       <div className="p-3 border-t">
         <div className="flex gap-2">
+          <AttachmentButton
+            onImageSelect={() => {}}
+            onFormulaInsert={(formula) => setNewMessage(prev => prev + ` $$${formula}$$ `)}
+            disabled={loading}
+          />
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Digite sua mensagem..."
             disabled={loading}
+            className="flex-1"
           />
           <Button onClick={sendMessage} disabled={loading || !newMessage.trim()}>
             <Send className="w-4 h-4" />
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Use LaTeX: $x^2$ ou \frac{"{a}{b}"}
+          Use o botão de fórmula para inserir equações
         </p>
       </div>
     </Card>
