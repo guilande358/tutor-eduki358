@@ -22,38 +22,20 @@ const VideoGrid = ({
   isCameraOn,
   isMicOn,
 }: VideoGridProps) => {
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
   const totalParticipants = 1 + remoteStreams.size;
   const gridCols = totalParticipants <= 2 ? 2 : totalParticipants <= 4 ? 2 : 3;
 
   return (
     <div className={`grid gap-2 h-full grid-cols-${gridCols}`}>
-      {/* Vídeo local */}
+      {/* Avatar local (sem vídeo local - apenas indicadores) */}
       <Card className="relative overflow-hidden bg-muted aspect-video">
-        {isCameraOn && localStream ? (
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            playsInline
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
-            <Avatar className="w-16 h-16">
-              <AvatarFallback className="bg-primary text-white text-xl">
-                {localUserName.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        )}
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
+          <Avatar className="w-16 h-16">
+            <AvatarFallback className="bg-primary text-white text-xl">
+              {localUserName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </div>
         
         <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
           <span className="bg-black/50 text-white text-xs px-2 py-1 rounded">
@@ -82,7 +64,7 @@ const VideoGrid = ({
         </div>
       </Card>
 
-      {/* Vídeos remotos */}
+      {/* Vídeos remotos via WebRTC */}
       {Array.from(remoteStreams.entries()).map(([peerId, stream]) => (
         <RemoteVideo
           key={peerId}
@@ -91,7 +73,7 @@ const VideoGrid = ({
         />
       ))}
 
-      {/* Placeholders para grid vazio */}
+      {/* Placeholder para grid vazio */}
       {remoteStreams.size === 0 && (
         <Card className="relative overflow-hidden bg-muted/50 aspect-video flex items-center justify-center border-dashed">
           <div className="text-center text-muted-foreground">

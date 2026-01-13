@@ -30,7 +30,7 @@ jobs:
         uses: android-actions/setup-android@v3
         
       - name: Instalar dependências
-        run: npm install
+        run: npm install --legacy-peer-deps
         
       - name: Instalar Capacitor CLI globalmente (fallback)
         run: npm install -g @capacitor/cli
