@@ -15,7 +15,6 @@ import VideoGrid from "@/components/study-room/VideoGrid";
 import Footer from "@/components/Footer";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
-import { useNativePermissions } from "@/hooks/useNativePermissions";
 import { motion } from "framer-motion";
 
 interface StudyRoomPageProps {
@@ -43,14 +42,13 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
 
   const codeFromUrl = searchParams.get("code");
 
-  // Media devices hook
+  // Media devices hook - audio only for local, video comes via WebRTC
   const {
     mediaState,
     stream: localStream,
-    toggleCamera,
     toggleMicrophone,
-    startCamera,
-    stopCamera,
+    startMicrophone,
+    stopMicrophone,
   } = useMediaDevices();
 
   // WebRTC hook - only active when in a room
@@ -64,41 +62,25 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
     localStream,
   });
 
-  // Native permissions hook
-  const { isNative, requestMediaPermissions } = useNativePermissions();
-
   useEffect(() => {
     if (codeFromUrl) {
       joinRoomByCode(codeFromUrl);
     }
   }, [codeFromUrl]);
 
-  // Request permissions and start camera when entering room
+  // Start microphone when entering room (audio-only local)
   useEffect(() => {
     if (room) {
       const initMedia = async () => {
-        // On native platforms, request permissions first
-        if (isNative) {
-          const granted = await requestMediaPermissions();
-          if (!granted) {
-            toast({
-              title: "Permissões necessárias",
-              description: "Ative câmera e microfone nas configurações do app para usar a Sala de Estudo.",
-              variant: "destructive",
-              duration: 8000,
-            });
-            return;
-          }
-        }
-        await startCamera();
+        await startMicrophone();
       };
       initMedia().catch(console.error);
     }
     return () => {
-      stopCamera();
+      stopMicrophone();
       disconnectWebRTC();
     };
-  }, [room?.id, isNative]);
+  }, [room?.id]);
 
   // Connect to participants when room is joined
   useEffect(() => {
@@ -171,7 +153,7 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
     if (!room) return;
 
     disconnectWebRTC();
-    stopCamera();
+    stopMicrophone();
 
     await supabase
       .from("room_participants")
@@ -326,9 +308,9 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
 
       {/* Main Content - Responsive Layout */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
-        {/* Left Column: Whiteboard + Video Grid */}
+        {/* Left Column: Whiteboard + Remote Video Grid */}
         <div className="lg:col-span-2 flex flex-col gap-4 min-h-[300px] lg:min-h-0">
-          {/* Video Grid */}
+          {/* Remote Video Grid (streaming via WebRTC) */}
           {showVideo && (
             <div className="h-[200px] lg:h-[180px]">
               <VideoGrid
@@ -337,7 +319,7 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
                 participantNames={participantNames}
                 localUserId={userId}
                 localUserName={userName}
-                isCameraOn={mediaState.isVideoEnabled}
+                isCameraOn={false}
                 isMicOn={mediaState.isAudioEnabled}
               />
             </div>

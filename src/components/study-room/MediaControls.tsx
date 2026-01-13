@@ -1,11 +1,8 @@
-import { useRef, useEffect } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
 import { 
-  Video, 
-  VideoOff, 
   Mic, 
   MicOff, 
   Circle, 
@@ -24,9 +21,6 @@ interface MediaControlsProps {
 const MediaControls = ({ onSendVoiceMessage, compact = false }: MediaControlsProps) => {
   const {
     mediaState,
-    hasPermissions,
-    videoRef,
-    toggleCamera,
     toggleMicrophone,
     startRecording,
     stopRecording,
@@ -52,43 +46,8 @@ const MediaControls = ({ onSendVoiceMessage, compact = false }: MediaControlsPro
   return (
     <Card className={cn("p-4", compact && "p-2")}>
       <div className="space-y-4">
-        {/* Video Preview */}
-        {mediaState.isVideoEnabled && (
-          <div className="relative rounded-lg overflow-hidden bg-black aspect-video max-h-48">
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              playsInline
-              className="w-full h-full object-cover"
-            />
-            <Badge className="absolute top-2 left-2 bg-green-500">
-              Ao vivo
-            </Badge>
-          </div>
-        )}
-
-        {/* Main Controls */}
+        {/* Main Controls - Audio Only */}
         <div className="flex items-center justify-center gap-3">
-          <Button
-            variant={mediaState.isVideoEnabled ? "default" : "outline"}
-            size={compact ? "sm" : "default"}
-            onClick={toggleCamera}
-            className="gap-2"
-          >
-            {mediaState.isVideoEnabled ? (
-              <>
-                <Video className="w-4 h-4" />
-                {!compact && "Câmera"}
-              </>
-            ) : (
-              <>
-                <VideoOff className="w-4 h-4" />
-                {!compact && "Câmera"}
-              </>
-            )}
-          </Button>
-
           <Button
             variant={mediaState.isAudioEnabled ? "default" : "outline"}
             size={compact ? "sm" : "default"}
@@ -172,15 +131,8 @@ const MediaControls = ({ onSendVoiceMessage, compact = false }: MediaControlsPro
           </div>
         )}
 
-        {/* Status Indicators */}
+        {/* Status Indicator - Audio Only */}
         <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <div className={cn(
-              "w-2 h-2 rounded-full",
-              mediaState.isVideoEnabled ? "bg-green-500" : "bg-muted-foreground"
-            )} />
-            Câmera {mediaState.isVideoEnabled ? "ligada" : "desligada"}
-          </div>
           <div className="flex items-center gap-1">
             <div className={cn(
               "w-2 h-2 rounded-full",

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { 
   Pencil, Eraser, Type, Undo, Redo, Trash2, 
-  Circle, Square, Minus, Download 
+  Circle, Square, Minus, Download, Maximize2, Minimize2 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,7 @@ const Whiteboard = ({ roomId, onSave, initialData }: WhiteboardProps) => {
   const [actions, setActions] = useState<DrawAction[]>([]);
   const [redoStack, setRedoStack] = useState<DrawAction[]>([]);
   const [currentPoints, setCurrentPoints] = useState<Point[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const getContext = useCallback(() => {
     const canvas = canvasRef.current;
@@ -66,7 +67,7 @@ const Whiteboard = ({ roomId, onSave, initialData }: WhiteboardProps) => {
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     return () => window.removeEventListener("resize", resizeCanvas);
-  }, []);
+  }, [isExpanded]);
 
   // Redraw all actions
   const redraw = useCallback(() => {
@@ -228,6 +229,10 @@ const Whiteboard = ({ roomId, onSave, initialData }: WhiteboardProps) => {
     onSave?.(data);
   };
 
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   const tools: { id: Tool; icon: React.ReactNode; label: string }[] = [
     { id: "pencil", icon: <Pencil className="w-4 h-4" />, label: "Lápis" },
     { id: "eraser", icon: <Eraser className="w-4 h-4" />, label: "Borracha" },
@@ -237,10 +242,13 @@ const Whiteboard = ({ roomId, onSave, initialData }: WhiteboardProps) => {
     { id: "text", icon: <Type className="w-4 h-4" />, label: "Texto" },
   ];
 
-  return (
-    <Card className="flex flex-col h-full overflow-hidden">
+  const whiteboardContent = (
+    <Card className={cn(
+      "flex flex-col overflow-hidden",
+      isExpanded ? "h-full" : "h-full"
+    )}>
       {/* Toolbar */}
-      <div className="flex items-center gap-2 p-2 border-b flex-wrap">
+      <div className="flex items-center gap-2 p-2 border-b flex-wrap bg-background">
         {/* Tools */}
         <div className="flex gap-1">
           {tools.map((t) => (
@@ -302,6 +310,18 @@ const Whiteboard = ({ roomId, onSave, initialData }: WhiteboardProps) => {
           <Button variant="ghost" size="sm" onClick={save}>
             <Download className="w-4 h-4" />
           </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleExpand}
+            title={isExpanded ? "Minimizar" : "Expandir"}
+          >
+            {isExpanded ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
+          </Button>
         </div>
       </div>
 
@@ -321,6 +341,17 @@ const Whiteboard = ({ roomId, onSave, initialData }: WhiteboardProps) => {
       </div>
     </Card>
   );
+
+  // Render expanded mode as fullscreen overlay
+  if (isExpanded) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm p-4">
+        {whiteboardContent}
+      </div>
+    );
+  }
+
+  return whiteboardContent;
 };
 
 export default Whiteboard;
