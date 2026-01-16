@@ -1,1 +1,13 @@
 project_id = "gjweiwumqhkbpucdtfqd"
+
+[functions.ai-tutor]
+verify_jwt = false
+
+[functions.generate-exercise]
+verify_jwt = false
+
+[functions.check-achievements]
+verify_jwt = false
+
+[functions.generate-daily-quiz]
+verify_jwt = false
