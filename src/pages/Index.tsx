@@ -15,6 +15,7 @@ import ProgressScreen from "@/components/progress/ProgressScreen";
 import LearningProfile from "@/components/LearningProfile";
 import ProgressDashboard from "@/components/progress/ProgressDashboard";
 import DailyChallengeCard from "@/components/progress/DailyChallengeCard";
+import DailyQuizBanner from "@/components/DailyQuizBanner";
 import StudyRoomPage from "@/components/study-room/StudyRoomPage";
 import PremiumSubscription from "@/components/PremiumSubscription";
 import NotificationSettings from "@/components/NotificationSettings";
@@ -23,7 +24,7 @@ import ConvertXPCredits from "@/components/ConvertXPCredits";
 import Footer from "@/components/Footer";
 import { 
   GraduationCap, LogOut, MessageSquare, Dumbbell, Trophy, 
-  AlertCircle, Home, TrendingUp, Users, User as UserIcon, Crown, Bell
+  AlertCircle, Home, TrendingUp, Users, User as UserIcon, Crown, Bell, Menu
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAchievements } from "@/hooks/useAchievements";
@@ -184,6 +185,14 @@ const Index = () => {
             <div className="flex items-center gap-2">
               <CreditsDisplay userId={user.id} />
               <Button
+                onClick={() => navigate("/menu")}
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+              <Button
                 onClick={() => setShowPremium(true)}
                 variant="outline"
                 size="sm"
@@ -212,12 +221,15 @@ const Index = () => {
                 <span className="hidden sm:inline">Sair</span>
               </Button>
             </div>
-          </div>
-        </div>
       </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {/* Daily Quiz Banner */}
+        <div className="max-w-4xl mx-auto">
+          <DailyQuizBanner userId={user.id} />
+        </div>
+
         {/* Credits Recovery */}
         <div className="max-w-4xl mx-auto mb-6">
           <CreditsRecovery

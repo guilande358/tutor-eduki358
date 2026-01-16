@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import MenuPage from "./pages/MenuPage";
+import DailyQuizPage from "./pages/DailyQuizPage";
+import DailyQuizSetup from "./pages/DailyQuizSetup";
 import "./i18n/config";
 
 const queryClient = new QueryClient();
@@ -19,6 +22,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/menu" element={<MenuPage />} />
+          <Route path="/daily-quiz" element={<DailyQuizPage />} />
+          <Route path="/quiz-setup" element={<DailyQuizSetup />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

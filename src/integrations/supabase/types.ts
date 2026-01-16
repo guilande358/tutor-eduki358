@@ -262,6 +262,57 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_quiz_sessions: {
+        Row: {
+          answers: Json | null
+          completed_at: string | null
+          created_at: string | null
+          credits_reward: number | null
+          difficulty: string
+          id: string
+          is_completed: boolean | null
+          questions: Json
+          quiz_date: string
+          score: number | null
+          subject: string
+          total_questions: number
+          user_id: string
+          xp_reward: number | null
+        }
+        Insert: {
+          answers?: Json | null
+          completed_at?: string | null
+          created_at?: string | null
+          credits_reward?: number | null
+          difficulty: string
+          id?: string
+          is_completed?: boolean | null
+          questions?: Json
+          quiz_date?: string
+          score?: number | null
+          subject: string
+          total_questions?: number
+          user_id: string
+          xp_reward?: number | null
+        }
+        Update: {
+          answers?: Json | null
+          completed_at?: string | null
+          created_at?: string | null
+          credits_reward?: number | null
+          difficulty?: string
+          id?: string
+          is_completed?: boolean | null
+          questions?: Json
+          quiz_date?: string
+          score?: number | null
+          subject?: string
+          total_questions?: number
+          user_id?: string
+          xp_reward?: number | null
+        }
+        Relationships: []
+      }
       learning_history: {
         Row: {
           created_at: string | null
@@ -617,6 +668,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_quiz_preferences: {
+        Row: {
+          created_at: string | null
+          difficulty_level: string
+          exercises_per_quiz: number
+          favorite_subject: string
+          id: string
+          question_types: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          difficulty_level?: string
+          exercises_per_quiz?: number
+          favorite_subject?: string
+          id?: string
+          question_types?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          difficulty_level?: string
+          exercises_per_quiz?: number
+          favorite_subject?: string
+          id?: string
+          question_types?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_rewards: {
         Row: {
           id: string
@@ -684,6 +768,36 @@ export type Database = {
           payment_provider?: string | null
           plan_type?: string
           started_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_ui_preferences: {
+        Row: {
+          banner_hidden_until: string | null
+          chat_mode: string | null
+          created_at: string | null
+          hide_daily_banner: boolean | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          banner_hidden_until?: string | null
+          chat_mode?: string | null
+          created_at?: string | null
+          hide_daily_banner?: boolean | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          banner_hidden_until?: string | null
+          chat_mode?: string | null
+          created_at?: string | null
+          hide_daily_banner?: boolean | null
+          id?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
