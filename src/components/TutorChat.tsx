@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, Bot, User, Loader2, X, FileImage, Maximize2, Minimize2 } from "lucide-react";
+import { Send, Bot, User, Loader2, X, FileImage, GraduationCap } from "lucide-react";
 import ConversationDrawer from "@/components/ConversationDrawer";
 import MathRenderer from "@/components/MathRenderer";
 import CreditsDisplay from "@/components/CreditsDisplay";
@@ -31,16 +31,16 @@ interface Attachment {
 interface TutorChatProps {
   userId: string;
   kiLevel: number;
+  chatMode?: "tutor" | "casual";
   onShowPremium?: () => void;
 }
 
-const TutorChat = ({ userId, kiLevel, onShowPremium }: TutorChatProps) => {
+const TutorChat = ({ userId, kiLevel, chatMode = "tutor", onShowPremium }: TutorChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [showNoCreditsDialog, setShowNoCreditsDialog] = useState(false);
   const [userXP, setUserXP] = useState(0);
@@ -155,12 +155,8 @@ const TutorChat = ({ userId, kiLevel, onShowPremium }: TutorChatProps) => {
 
         setMessages(messagesWithAttachments);
       } else {
-        const welcomeMessage: Message = {
-          role: "assistant",
-          content: `Olá! 👋 Eu sou o EduKI, seu tutor de IA personalizado! Estou aqui para te ajudar a aprender qualquer coisa.\n\nVejo que você está no nível KI ${kiLevel}. Vou adaptar minhas explicações para o seu nível. O que gostaria de aprender hoje? 📚\n\n💡 Dica: Você pode enviar imagens de exercícios para eu te ajudar!`,
-        };
-        setMessages([welcomeMessage]);
-        await saveMessage(welcomeMessage, conversationId);
+        // Don't add welcome message - show empty state instead
+        setMessages([]);
       }
     } catch (error: any) {
       console.error("Erro ao carregar histórico:", error);
@@ -234,7 +230,7 @@ const TutorChat = ({ userId, kiLevel, onShowPremium }: TutorChatProps) => {
     try {
       for (const file of selectedFiles) {
         const fileExt = file.name.split(".").pop();
-        const fileName = `\( {userId}/ \){Date.now()}_\( {Math.random()}. \){fileExt}`;
+        const fileName = `${userId}/${Date.now()}_${Math.random()}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from("chat-attachments")
@@ -326,7 +322,7 @@ const TutorChat = ({ userId, kiLevel, onShowPremium }: TutorChatProps) => {
       const messagesForAI = [...messages, userMessage].map((msg) => ({
         role: msg.role,
         content: msg.attachments && msg.attachments.length > 0
-          ? `\( {msg.content}\n\n[Usuário anexou \){msg.attachments.length} imagem(ns). Por favor, considere que o estudante enviou imagens relacionadas à pergunta.]`
+          ? `${msg.content}\n\n[Usuário anexou ${msg.attachments.length} imagem(ns). Por favor, considere que o estudante enviou imagens relacionadas à pergunta.]`
           : msg.content,
       }));
 
@@ -335,6 +331,7 @@ const TutorChat = ({ userId, kiLevel, onShowPremium }: TutorChatProps) => {
           messages: messagesForAI,
           kiLevel,
           hasAttachments: attachments.length > 0,
+          chatMode: chatMode, // Pass the current chat mode
         },
       });
 
@@ -422,113 +419,132 @@ const TutorChat = ({ userId, kiLevel, onShowPremium }: TutorChatProps) => {
     setMessages([]);
   };
 
+  // Empty state placeholder text based on mode
+  const getPlaceholderText = () => {
+    if (chatMode === "casual") {
+      return "Sobre o que vamos conversar? 💭";
+    }
+    return "O que você quer aprender hoje? 📚";
+  };
+
+  const getInputPlaceholder = () => {
+    if (chatMode === "casual") {
+      return "Pergunte qualquer coisa...";
+    }
+    return "Pergunte sobre qualquer matéria...";
+  };
+
   return (
-    <div className={`${isFullScreen ? "fixed inset-0 z-50 bg-background" : ""}`}>
-      <Card className={`flex flex-col shadow-lg ${isFullScreen ? "h-screen rounded-none" : "h-[600px]"}`}>
-        <div className="p-4 border-b bg-gradient-primary text-white rounded-t-lg">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <ConversationDrawer
-                userId={userId}
-                currentConversationId={currentConversationId}
-                onConversationSelect={handleSelectConversation}
-                onNewConversation={handleNewConversation}
-              />
-              <Avatar className="border-2 border-white">
-                <AvatarFallback className="bg-white text-primary">
-                  <Bot className="w-5 h-5" />
+    <div className="flex flex-col h-[calc(100vh-200px)] min-h-[400px]">
+      <Card className="flex flex-col flex-1 shadow-lg rounded-2xl overflow-hidden">
+        {/* Header with credits and conversation drawer */}
+        <div className="p-3 border-b bg-card flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ConversationDrawer
+              userId={userId}
+              currentConversationId={currentConversationId}
+              onConversationSelect={handleSelectConversation}
+              onNewConversation={handleNewConversation}
+            />
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8 border-2 border-primary/20">
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  <Bot className="w-4 h-4" />
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <h3 className="font-semibold">Tutor EduKI</h3>
-                <p className="text-xs text-white/80">Sempre pronto para te ajudar</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <CreditsDisplay userId={userId} compact />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsFullScreen(!isFullScreen)}
-                className="text-white hover:bg-white/20"
-              >
-                {isFullScreen ? (
-                  <Minimize2 className="w-5 h-5" />
-                ) : (
-                  <Maximize2 className="w-5 h-5" />
-                )}
-              </Button>
+              <span className="font-medium text-sm">
+                {chatMode === "casual" ? "EduKI Chat" : "Tutor EduKI"}
+              </span>
             </div>
           </div>
+          <CreditsDisplay userId={userId} compact />
         </div>
 
-        {/* ScrollArea corrigido com ref no viewport interno */}
+        {/* Messages Area */}
         <ScrollArea className="flex-1 p-4" ref={viewportRef}>
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex gap-3 ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                {message.role === "assistant" && (
-                  <Avatar className="shrink-0">
-                    <AvatarFallback className="bg-primary text-white">
+          {messages.length === 0 ? (
+            // Empty State - Centered Logo
+            <div className="h-full flex flex-col items-center justify-center text-center py-12">
+              <div className="p-6 rounded-full bg-muted/50 mb-6">
+                <GraduationCap className="w-16 h-16 text-muted-foreground/40" />
+              </div>
+              <p className="text-lg text-muted-foreground font-medium">
+                {getPlaceholderText()}
+              </p>
+              <p className="text-sm text-muted-foreground/70 mt-2">
+                {chatMode === "casual" 
+                  ? "Posso ajudar com qualquer assunto!" 
+                  : "Estou aqui para te ajudar a aprender!"}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex gap-3 ${
+                    message.role === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  {message.role === "assistant" && (
+                    <Avatar className="shrink-0 h-8 w-8">
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        <Bot className="w-4 h-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div
+                    className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+                      message.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    }`}
+                  >
+                    <MathRenderer content={message.content} className="text-sm whitespace-pre-wrap" />
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="mt-2 space-y-2">
+                        {message.attachments.map((attachment) => (
+                          <div
+                            key={attachment.id}
+                            className="relative rounded-lg overflow-hidden border-2 border-white/20"
+                          >
+                            <img
+                              src={attachment.url}
+                              alt={attachment.file_name}
+                              className="max-w-full h-auto max-h-48 object-contain"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {message.role === "user" && (
+                    <Avatar className="shrink-0 h-8 w-8">
+                      <AvatarFallback className="bg-accent text-accent-foreground">
+                        <User className="w-4 h-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                </div>
+              ))}
+              {loading && (
+                <div className="flex gap-3">
+                  <Avatar className="shrink-0 h-8 w-8">
+                    <AvatarFallback className="bg-primary text-primary-foreground">
                       <Bot className="w-4 h-4" />
                     </AvatarFallback>
                   </Avatar>
-                )}
-                <div
-                  className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                    message.role === "user"
-                      ? "bg-primary text-white"
-                      : "bg-muted"
-                  }`}
-                >
-                  <MathRenderer content={message.content} className="text-sm whitespace-pre-wrap" />
-                  {message.attachments && message.attachments.length > 0 && (
-                    <div className="mt-2 space-y-2">
-                      {message.attachments.map((attachment) => (
-                        <div
-                          key={attachment.id}
-                          className="relative rounded-lg overflow-hidden border-2 border-white/20"
-                        >
-                          <img
-                            src={attachment.url}
-                            alt={attachment.file_name}
-                            className="max-w-full h-auto max-h-48 object-contain"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="rounded-2xl px-4 py-3 bg-muted">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  </div>
                 </div>
-                {message.role === "user" && (
-                  <Avatar className="shrink-0">
-                    <AvatarFallback className="bg-accent text-white">
-                      <User className="w-4 h-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            ))}
-            {loading && (
-              <div className="flex gap-3">
-                <Avatar className="shrink-0">
-                  <AvatarFallback className="bg-primary text-white">
-                    <Bot className="w-4 h-4" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="rounded-2xl px-4 py-3 bg-muted">
-                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </ScrollArea>
 
-        <div className="p-4 border-t space-y-3">
+        {/* Input Area */}
+        <div className="p-4 border-t space-y-3 bg-card">
           {selectedFiles.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {selectedFiles.map((file, index) => (
@@ -571,14 +587,15 @@ const TutorChat = ({ userId, kiLevel, onShowPremium }: TutorChatProps) => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Pergunte qualquer coisa ou envie uma imagem..."
+              placeholder={getInputPlaceholder()}
               disabled={loading || uploading}
-              className="flex-1"
+              className="flex-1 rounded-full bg-muted border-0"
             />
             <Button
               onClick={sendMessage}
               disabled={loading || uploading || (!input.trim() && selectedFiles.length === 0)}
-              className="bg-gradient-primary"
+              className="rounded-full bg-primary hover:bg-primary/90"
+              size="icon"
             >
               {loading || uploading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
