@@ -221,6 +221,8 @@ const Index = () => {
                 <span className="hidden sm:inline">Sair</span>
               </Button>
             </div>
+          </div>
+        </div>
       </header>
 
       {/* Main Content */}
