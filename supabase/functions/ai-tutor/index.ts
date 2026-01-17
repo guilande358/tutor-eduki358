@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    // Validação de input
+    // Validação de input com chatMode
     const requestSchema = z.object({
       messages: z.array(z.object({
         role: z.string(),
@@ -22,21 +22,55 @@ serve(async (req) => {
       kiLevel: z.number().min(0).max(100),
       hasAttachments: z.boolean().optional(),
       isStudyRoom: z.boolean().optional(),
-      countryRegion: z.string().optional()
+      countryRegion: z.string().optional(),
+      chatMode: z.enum(['tutor', 'casual']).optional().default('tutor')
     });
 
     const requestData = await req.json();
-    const { messages, kiLevel, hasAttachments, isStudyRoom, countryRegion } = requestSchema.parse(requestData);
+    const { messages, kiLevel, hasAttachments, isStudyRoom, countryRegion, chatMode } = requestSchema.parse(requestData);
     
-    console.log('Tutor AI request:', { messagesCount: messages.length, kiLevel, hasAttachments, isStudyRoom });
+    console.log('Tutor AI request:', { messagesCount: messages.length, kiLevel, hasAttachments, isStudyRoom, chatMode });
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // PERSONALIDADE HUMANIZADA DO TUTOR EDUKI
-    let systemPrompt = `Você é o EduKI, um tutor de IA que age como professor, educador e pai ao mesmo tempo.
+    let systemPrompt = '';
+
+    // MODO CASUAL - Chat informal estilo ChatGPT/Grok
+    if (chatMode === 'casual') {
+      systemPrompt = `Você é o EduKI, um assistente de IA versátil e amigável! 🚀
+
+🎯 MODO CASUAL (Imagine):
+- Responda de forma natural, descontraída e conversacional
+- Você pode discutir QUALQUER assunto, não apenas educacional
+- Use humor leve quando apropriado
+- Seja criativo e inspirador
+- Mantenha respostas úteis e interessantes
+- Use emojis com moderação para dar personalidade
+
+💡 VOCÊ PODE AJUDAR COM:
+- Ideias criativas e brainstorming
+- Planejamento e organização
+- Curiosidades e conhecimentos gerais
+- Dicas de produtividade
+- Conversas sobre tecnologia, ciência, arte, etc.
+- Histórias e entretenimento
+- Reflexões filosóficas
+- E muito mais!
+
+⚡ ESTILO:
+- Seja autêntico e genuíno
+- Respostas concisas mas completas
+- Fale como um amigo inteligente
+- Adapte o tom à conversa
+- Se não souber algo, admita naturalmente
+
+Divirta-se conversando e seja o melhor assistente possível! ✨`;
+    } else {
+      // MODO TUTOR - Personalidade educativa humanizada
+      systemPrompt = `Você é o EduKI, um tutor de IA que age como professor, educador e pai ao mesmo tempo.
 
 🎯 SUAS REGRAS DE OURO:
 1. SEMPRE ouça com atenção, compreenda a dúvida do aluno e analise a profundidade dela
@@ -74,29 +108,34 @@ SE A PERGUNTA FOR ESPECÍFICA (ex: "Como resolver 2^(x+1) = 16?" ou imagem de ex
 - Adapte sua linguagem ao nível do aluno
 - Use notação adequada ao país do aluno`;
 
-    // Adaptar ao nível do aluno
-    if (kiLevel <= 20) {
-      systemPrompt += `\n\n🌱 NÍVEL INICIANTE (KI ${kiLevel}): Use linguagem bem simples, muitos exemplos do dia a dia. Seja MUITO encorajador e paciente.`;
-    } else if (kiLevel <= 50) {
-      systemPrompt += `\n\n📈 NÍVEL INTERMEDIÁRIO (KI ${kiLevel}): Use explicações claras mas mais detalhadas. Introduza termos técnicos gradualmente.`;
-    } else if (kiLevel <= 80) {
-      systemPrompt += `\n\n🚀 NÍVEL AVANÇADO (KI ${kiLevel}): Use explicações mais profundas e técnicas. Desafie com questões que fazem pensar.`;
-    } else {
-      systemPrompt += `\n\n🏆 NÍVEL MESTRE (KI ${kiLevel}): Use linguagem técnica avançada. Proponha desafios complexos e discussões aprofundadas.`;
+      // Adaptar ao nível do aluno (apenas no modo tutor)
+      if (kiLevel <= 20) {
+        systemPrompt += `\n\n🌱 NÍVEL INICIANTE (KI ${kiLevel}): Use linguagem bem simples, muitos exemplos do dia a dia. Seja MUITO encorajador e paciente.`;
+      } else if (kiLevel <= 50) {
+        systemPrompt += `\n\n📈 NÍVEL INTERMEDIÁRIO (KI ${kiLevel}): Use explicações claras mas mais detalhadas. Introduza termos técnicos gradualmente.`;
+      } else if (kiLevel <= 80) {
+        systemPrompt += `\n\n🚀 NÍVEL AVANÇADO (KI ${kiLevel}): Use explicações mais profundas e técnicas. Desafie com questões que fazem pensar.`;
+      } else {
+        systemPrompt += `\n\n🏆 NÍVEL MESTRE (KI ${kiLevel}): Use linguagem técnica avançada. Proponha desafios complexos e discussões aprofundadas.`;
+      }
     }
 
-    // Contexto da Sala de Estudo
+    // Contexto da Sala de Estudo (aplica a ambos os modos)
     if (isStudyRoom) {
       systemPrompt += `\n\n🎓 CONTEXTO SALA DE ESTUDO: Você está ajudando em uma sala de estudo colaborativa. Escreva no quadro de forma calma e encorajadora. Pode usar formatação para simular escrita no quadro. Incentive a colaboração entre os estudantes.`;
     }
 
-    // Adaptar notação ao país
+    // Adaptar notação ao país (aplica a ambos os modos)
     if (countryRegion) {
       systemPrompt += `\n\n🌍 REGIÃO: ${countryRegion} - Adapte notações matemáticas (vírgula/ponto decimal, unidades de medida) conforme o padrão local.`;
     }
 
     if (hasAttachments) {
-      systemPrompt += `\n\n📎 ATENÇÃO: O aluno enviou imagens. Analise o contexto e forneça ajuda específica relacionada às imagens. Se for um exercício, resolva passo a passo de forma interativa.`;
+      if (chatMode === 'casual') {
+        systemPrompt += `\n\n📎 ATENÇÃO: O usuário enviou imagens. Analise o contexto e forneça ajuda relacionada às imagens.`;
+      } else {
+        systemPrompt += `\n\n📎 ATENÇÃO: O aluno enviou imagens. Analise o contexto e forneça ajuda específica relacionada às imagens. Se for um exercício, resolva passo a passo de forma interativa.`;
+      }
     }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -111,8 +150,8 @@ SE A PERGUNTA FOR ESPECÍFICA (ex: "Como resolver 2^(x+1) = 16?" ou imagem de ex
           { role: 'system', content: systemPrompt },
           ...messages
         ],
-        temperature: 0.7,
-        max_tokens: 800, // Reduzido para respostas mais curtas
+        temperature: chatMode === 'casual' ? 0.8 : 0.7, // Slightly higher temp for casual mode
+        max_tokens: 800,
       }),
     });
 
@@ -140,7 +179,7 @@ SE A PERGUNTA FOR ESPECÍFICA (ex: "Como resolver 2^(x+1) = 16?" ou imagem de ex
     const data = await response.json();
     const reply = data.choices[0].message.content;
 
-    console.log('Tutor AI response generated successfully');
+    console.log('Tutor AI response generated successfully, mode:', chatMode);
 
     return new Response(
       JSON.stringify({ reply }),
