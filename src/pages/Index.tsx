@@ -14,12 +14,14 @@ import WrongAnswersPanel from "@/components/WrongAnswersPanel";
 import LearningProfile from "@/components/LearningProfile";
 import NotificationSettings from "@/components/NotificationSettings";
 import SuggestionsPanel from "@/components/SuggestionsPanel";
+import SpacedReview from "@/components/SpacedReview";
+import UnityAdsBanner from "@/components/UnityAdsBanner";
 import Footer from "@/components/Footer";
 import { useUIPreferences } from "@/hooks/useUIPreferences";
 import { 
   GraduationCap, Menu, Bell, HelpCircle, Sparkles, 
   Zap, Dumbbell, TrendingUp, ArrowLeft,
-  Trophy, AlertCircle
+  Trophy, AlertCircle, Brain
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAchievements } from "@/hooks/useAchievements";
@@ -246,6 +248,7 @@ const Index = () => {
                 {activeTab === "profile" && "Perfil"}
                 {activeTab === "notifications" && "Notificações"}
                 {activeTab === "settings" && "Configurações"}
+                {activeTab === "review" && "Revisão Espaçada"}
               </h1>
             )}
 
@@ -334,6 +337,15 @@ const Index = () => {
                   <AlertCircle className="w-4 h-4 mr-2 text-red-500" />
                   Meus Erros
                 </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="rounded-full whitespace-nowrap"
+                  onClick={() => setActiveTab("review")}
+                >
+                  <Brain className="w-4 h-4 mr-2 text-indigo-500" />
+                  Revisão
+                </Button>
               </div>
             </div>
           </>
@@ -401,7 +413,21 @@ const Index = () => {
             <ProgressScreen userId={user.id} />
           </div>
         )}
+
+        {/* Spaced Review Section */}
+        {activeTab === "review" && (
+          <div className="py-4">
+            <SpacedReview userId={user.id} onClose={handleBackToChat} />
+          </div>
+        )}
       </main>
+
+      {/* Unity Ads Banner for free users */}
+      <UnityAdsBanner 
+        userId={user.id} 
+        position="bottom" 
+        onPremiumClick={() => setShowPremium(true)}
+      />
 
       {/* Premium Modal */}
       {showPremium && (
@@ -412,8 +438,10 @@ const Index = () => {
         </div>
       )}
 
-      {/* Footer */}
-      <Footer />
+      {/* Footer - add bottom padding for banner */}
+      <div className="pb-14">
+        <Footer />
+      </div>
     </div>
   );
 };
