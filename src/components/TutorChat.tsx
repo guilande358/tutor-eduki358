@@ -6,14 +6,16 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, Bot, User, Loader2, X, FileImage, GraduationCap } from "lucide-react";
+import { Send, Bot, User, Loader2, X, FileImage, GraduationCap, Mic, Volume2 } from "lucide-react";
 import ConversationDrawer from "@/components/ConversationDrawer";
 import MathRenderer from "@/components/MathRenderer";
 import CreditsDisplay from "@/components/CreditsDisplay";
 import NoCreditsDialog from "@/components/NoCreditsDialog";
 import AttachmentButton from "@/components/AttachmentButton";
+import CameraScanButton from "@/components/CameraScanButton";
+import VoiceButton from "@/components/VoiceButton";
 import { useCredits } from "@/hooks/useCredits";
-
+import { useVoiceChat } from "@/hooks/useVoiceChat";
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -48,11 +50,32 @@ const TutorChat = ({ userId, kiLevel, chatMode = "tutor", onShowPremium }: Tutor
   // Sistema de créditos
   const { hasCredits, useCredit, addCredits, isPremium, refetch: refetchCredits } = useCredits(userId);
   
+  // Voice chat hook
+  const { 
+    isListening, 
+    isSpeaking, 
+    isSupported: voiceSupported,
+    startListening, 
+    stopListening, 
+    speak, 
+    stopSpeaking,
+    transcript,
+    clearTranscript 
+  } = useVoiceChat();
+  
   // Ref para acessar o viewport interno do ScrollArea (shadcn-ui)
   const viewportRef = useRef<HTMLDivElement>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Update input when voice transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setInput(prev => prev + (prev ? " " : "") + transcript);
+      clearTranscript();
+    }
+  }, [transcript, clearTranscript]);
 
   useEffect(() => {
     loadChatHistory();
@@ -517,6 +540,20 @@ const TutorChat = ({ userId, kiLevel, chatMode = "tutor", onShowPremium }: Tutor
                         ))}
                       </div>
                     )}
+                    {/* Speak button for assistant messages */}
+                    {message.role === "assistant" && voiceSupported && (
+                      <div className="mt-2 pt-2 border-t border-border/50">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5"
+                          onClick={() => isSpeaking ? stopSpeaking() : speak(message.content)}
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                          {isSpeaking ? "Parar" : "Ouvir"}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   {message.role === "user" && (
                     <Avatar className="shrink-0 h-8 w-8">
@@ -583,13 +620,37 @@ const TutorChat = ({ userId, kiLevel, chatMode = "tutor", onShowPremium }: Tutor
               onFormulaInsert={(formula) => setInput(prev => prev + ` $$${formula}$$ `)}
               disabled={loading || uploading}
             />
+            <CameraScanButton
+              onImageCapture={(imageBase64) => {
+                // Create a blob from base64 and add to files
+                const byteString = atob(imageBase64.split(",")[1]);
+                const mimeString = imageBase64.split(",")[0].split(":")[1].split(";")[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                  ia[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([ab], { type: mimeString });
+                const file = new File([blob], `scan-${Date.now()}.jpg`, { type: mimeString });
+                setSelectedFiles(prev => [...prev, file].slice(0, 3));
+                setInput("Por favor, analise este exercício/problema na imagem e me ajude a resolver.");
+              }}
+              disabled={loading || uploading}
+            />
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={getInputPlaceholder()}
+              placeholder={isListening ? "Ouvindo..." : getInputPlaceholder()}
               disabled={loading || uploading}
               className="flex-1 rounded-full bg-muted border-0"
+            />
+            <VoiceButton
+              type="listen"
+              isActive={isListening}
+              isSupported={voiceSupported}
+              onToggle={() => isListening ? stopListening() : startListening()}
+              disabled={loading || uploading}
             />
             <Button
               onClick={sendMessage}
