@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import MathRenderer from "@/components/MathRenderer";
 import AttachmentButton from "@/components/AttachmentButton";
+import CameraScanButton from "@/components/CameraScanButton";
 
 interface RoomChatProps {
   roomId: string;
@@ -204,20 +205,40 @@ const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
             onFormulaInsert={(formula) => setNewMessage(prev => prev + ` $$${formula}$$ `)}
             disabled={loading}
           />
+          <CameraScanButton
+            onImageCapture={(base64) => {
+              // Add message with image indicator
+              setNewMessage(prev => prev ? prev + " 📷 [Imagem anexada]" : "📷 Analisar esta imagem de exercício");
+            }}
+            disabled={loading}
+          />
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
             placeholder="Digite sua mensagem..."
             disabled={loading}
             className="flex-1"
           />
-          <Button onClick={sendMessage} disabled={loading || !newMessage.trim()}>
-            <Send className="w-4 h-4" />
+          <Button 
+            type="button"
+            onClick={sendMessage} 
+            disabled={loading || !newMessage.trim()}
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Use o botão de fórmula para inserir equações
+          Use fórmulas ou câmera para enviar exercícios
         </p>
       </div>
     </Card>

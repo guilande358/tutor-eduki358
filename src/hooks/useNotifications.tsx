@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 
 interface NotificationSettings {
   push_enabled: boolean;
@@ -18,16 +20,27 @@ export const useNotifications = (userId: string) => {
     study_reminders: true,
     reminder_time: "18:00",
   });
-  const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>("default");
+  const [permissionStatus, setPermissionStatus] = useState<"granted" | "denied" | "default">("default");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    if ("Notification" in window) {
-      setPermissionStatus(Notification.permission);
-    }
+    checkPermissionStatus();
     loadSettings();
   }, [userId]);
+
+  const checkPermissionStatus = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const result = await LocalNotifications.checkPermissions();
+        setPermissionStatus(result.display === "granted" ? "granted" : result.display === "denied" ? "denied" : "default");
+      } catch (error) {
+        console.error("Error checking notification permissions:", error);
+      }
+    } else if ("Notification" in window) {
+      setPermissionStatus(Notification.permission as "granted" | "denied" | "default");
+    }
+  };
 
   const loadSettings = async () => {
     const { data } = await supabase
@@ -48,10 +61,42 @@ export const useNotifications = (userId: string) => {
   };
 
   const requestPermission = async (): Promise<boolean> => {
+    // Native platform - use Capacitor Local Notifications
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const result = await LocalNotifications.requestPermissions();
+        const granted = result.display === "granted";
+        setPermissionStatus(granted ? "granted" : "denied");
+        
+        if (granted) {
+          toast({
+            title: "Notificações ativadas! 🔔",
+            description: "Você receberá lembretes para manter seu streak",
+          });
+        } else {
+          toast({
+            title: "Notificações bloqueadas",
+            description: "Habilite nas configurações do dispositivo",
+            variant: "destructive",
+          });
+        }
+        return granted;
+      } catch (error) {
+        console.error("Error requesting native notification permission:", error);
+        toast({
+          title: "Erro ao ativar notificações",
+          description: "Tente novamente mais tarde",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+
+    // Web platform - use Web Notifications API
     if (!("Notification" in window)) {
       toast({
         title: "Notificações não suportadas",
-        description: "Seu navegador não suporta notificações push",
+        description: "Este dispositivo não suporta notificações",
         variant: "destructive",
       });
       return false;
@@ -73,7 +118,7 @@ export const useNotifications = (userId: string) => {
     }
 
     const permission = await Notification.requestPermission();
-    setPermissionStatus(permission);
+    setPermissionStatus(permission as "granted" | "denied" | "default");
     
     if (permission === "granted") {
       toast({
@@ -94,20 +139,14 @@ export const useNotifications = (userId: string) => {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      
-      // Check if already subscribed
       let subscription = await registration.pushManager.getSubscription();
       
       if (!subscription) {
-        // Subscribe to push notifications
-        // Note: In production, you'd need a VAPID key from your push service
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          // applicationServerKey: VAPID_PUBLIC_KEY // Add your VAPID key here
         });
       }
 
-      // Save subscription to database
       await supabase
         .from("notification_settings")
         .upsert([{
@@ -157,22 +196,77 @@ export const useNotifications = (userId: string) => {
     }
   };
 
-  const showLocalNotification = useCallback((title: string, options?: NotificationOptions) => {
-    if (Notification.permission === "granted" && settings.push_enabled) {
+  const showLocalNotification = useCallback(async (title: string, body?: string, options?: { tag?: string }) => {
+    if (!settings.push_enabled) return;
+
+    // Native platform
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: Date.now(),
+              title,
+              body: body || "",
+              schedule: { at: new Date(Date.now() + 100) },
+              smallIcon: "ic_stat_notification",
+              iconColor: "#3B82F6",
+            },
+          ],
+        });
+      } catch (error) {
+        console.error("Error showing local notification:", error);
+      }
+      return;
+    }
+
+    // Web platform
+    if (Notification.permission === "granted") {
       new Notification(title, {
         icon: "/icon-192x192.png",
         badge: "/icon-192x192.png",
-        ...options,
+        body,
+        tag: options?.tag,
       });
     }
   }, [settings.push_enabled]);
 
-  const scheduleStreakReminder = useCallback(() => {
+  const scheduleStreakReminder = useCallback(async () => {
     if (!settings.streak_reminders) return;
     
-    // Check at reminder time if user hasn't studied today
-    const now = new Date();
     const [hours, minutes] = settings.reminder_time.split(":").map(Number);
+    
+    // Native platform - schedule via Capacitor
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const now = new Date();
+        const reminderTime = new Date(now);
+        reminderTime.setHours(hours, minutes, 0, 0);
+        
+        if (now > reminderTime) {
+          reminderTime.setDate(reminderTime.getDate() + 1);
+        }
+
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: 1001,
+              title: "🔥 Mantenha seu streak!",
+              body: "Não perca sua sequência de estudos hoje!",
+              schedule: { at: reminderTime, repeats: true, every: "day" },
+              smallIcon: "ic_stat_notification",
+              iconColor: "#F59E0B",
+            },
+          ],
+        });
+      } catch (error) {
+        console.error("Error scheduling streak reminder:", error);
+      }
+      return;
+    }
+
+    // Web fallback with setTimeout
+    const now = new Date();
     const reminderTime = new Date(now);
     reminderTime.setHours(hours, minutes, 0, 0);
 
@@ -183,7 +277,6 @@ export const useNotifications = (userId: string) => {
     const timeUntilReminder = reminderTime.getTime() - now.getTime();
 
     setTimeout(async () => {
-      // Check if user studied today
       const { data: progress } = await supabase
         .from("user_progress")
         .select("last_study_date, daily_streak")
@@ -193,21 +286,23 @@ export const useNotifications = (userId: string) => {
       const today = new Date().toISOString().split("T")[0];
       
       if (progress?.last_study_date !== today) {
-        showLocalNotification("🔥 Mantenha seu streak!", {
-          body: `Você tem uma sequência de ${progress?.daily_streak || 0} dias! Não perca agora!`,
-          tag: "streak-reminder",
-        });
+        showLocalNotification(
+          "🔥 Mantenha seu streak!",
+          `Você tem uma sequência de ${progress?.daily_streak || 0} dias! Não perca agora!`,
+          { tag: "streak-reminder" }
+        );
       }
-    }, Math.min(timeUntilReminder, 2147483647)); // Max setTimeout value
+    }, Math.min(timeUntilReminder, 2147483647));
   }, [settings, userId, showLocalNotification]);
 
   const sendDailyChallengeReminder = useCallback(() => {
     if (!settings.daily_challenge_reminders) return;
     
-    showLocalNotification("🎯 Desafio diário disponível!", {
-      body: "Complete o desafio de hoje e ganhe XP extra!",
-      tag: "daily-challenge",
-    });
+    showLocalNotification(
+      "🎯 Desafio diário disponível!",
+      "Complete o desafio de hoje e ganhe XP extra!",
+      { tag: "daily-challenge" }
+    );
   }, [settings.daily_challenge_reminders, showLocalNotification]);
 
   return {
