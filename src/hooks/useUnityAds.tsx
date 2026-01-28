@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
 import { useToast } from "@/components/ui/use-toast";
+import "@/types/unity-ads.d.ts";
 
 interface AdStats {
   totalWatched: number;

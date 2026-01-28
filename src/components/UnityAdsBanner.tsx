@@ -1,19 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Crown, X } from "lucide-react";
+import { Crown } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
-
-declare global {
-  interface Window {
-    UnityAds?: {
-      init: (options: { gameId: string; testMode?: boolean }) => void;
-      loadBanner: (options: { placementId: string }) => void;
-      showBanner: (options: { placementId: string; position: string }) => void;
-      hideBanner: () => void;
-    };
-  }
-}
+import "@/types/unity-ads.d.ts";
 
 interface UnityAdsBannerProps {
   userId: string;
@@ -119,36 +109,26 @@ const UnityAdsBanner = ({ userId, position = "bottom", onPremiumClick }: UnityAd
     };
   }, [isPremium, isVisible, isNative]);
 
-  // For native, use Capacitor Unity Ads plugin
+  // For native, use Capacitor Unity Ads plugin (rewarded video only - banners handled differently)
   useEffect(() => {
     if (isPremium || !isVisible || !isNative) return;
 
     const initNativeAds = async () => {
       try {
         const { UnityAds } = await import("capacitor-unity-ads");
+        // Native plugin uses initialize and load for rewarded videos
+        // Banner support varies by plugin version - fallback to placeholder
         await UnityAds.initialize({ gameId: UNITY_GAME_ID, testMode: false });
-        await UnityAds.loadBanner({ placementId: UNITY_PLACEMENT_ID });
-        await UnityAds.showBanner({ placementId: UNITY_PLACEMENT_ID, position: position === "top" ? "top" : "bottom" });
         setAdLoaded(true);
+        console.log("Native Unity Ads initialized for rewarded videos");
       } catch (error) {
         console.error("Failed to initialize native Unity Ads:", error);
+        setAdLoaded(false);
       }
     };
 
     initNativeAds();
-
-    return () => {
-      const cleanupNativeAds = async () => {
-        try {
-          const { UnityAds } = await import("capacitor-unity-ads");
-          await UnityAds.hideBanner();
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-      };
-      cleanupNativeAds();
-    };
-  }, [isPremium, isVisible, isNative, position]);
+  }, [isPremium, isVisible, isNative]);
 
   if (isPremium || !isVisible) return null;
 
