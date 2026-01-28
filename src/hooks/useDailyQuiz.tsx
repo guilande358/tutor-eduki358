@@ -96,29 +96,60 @@ export const useDailyQuiz = (userId: string) => {
   }, [userId]);
 
   const savePreferences = async (newPrefs: QuizPreferences) => {
-    const { error } = await supabase
-      .from("user_quiz_preferences")
-      .upsert({
-        user_id: userId,
-        ...newPrefs,
-        updated_at: new Date().toISOString(),
-      });
+    try {
+      // Check if preferences exist first
+      const { data: existing } = await supabase
+        .from("user_quiz_preferences")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    if (error) {
+      let error;
+      
+      if (existing) {
+        // Update existing record
+        const result = await supabase
+          .from("user_quiz_preferences")
+          .update({
+            ...newPrefs,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId);
+        error = result.error;
+      } else {
+        // Insert new record
+        const result = await supabase
+          .from("user_quiz_preferences")
+          .insert({
+            user_id: userId,
+            ...newPrefs,
+          });
+        error = result.error;
+      }
+
+      if (error) {
+        toast({
+          title: "Erro ao salvar preferências",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      setPreferences(newPrefs);
+      toast({
+        title: "Preferências salvas! ✅",
+        description: "Seu quiz diário será personalizado",
+      });
+      return true;
+    } catch (err: any) {
       toast({
         title: "Erro ao salvar preferências",
-        description: error.message,
+        description: err.message,
         variant: "destructive",
       });
       return false;
     }
-
-    setPreferences(newPrefs);
-    toast({
-      title: "Preferências salvas! ✅",
-      description: "Seu quiz diário será personalizado",
-    });
-    return true;
   };
 
   const generateQuiz = async () => {

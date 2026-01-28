@@ -181,46 +181,124 @@ All colors MUST be HSL.
   color: hsl(var(--foreground)) !important;
 }
 
-/* Cards de matemática estilo Notion */
+/* Cards de matemática estilo Notion - Expandido */
 .notion-math-card {
-  background: #f6f8fa;
-  border-radius: 12px;
+  background: hsl(var(--muted) / 0.6);
+  border-radius: 16px;
   padding: 24px 32px;
-  margin: 16px auto;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin: 16px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   text-align: center;
-  max-width: 90%;
-  width: fit-content;
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid hsl(var(--border) / 0.5);
 }
 
 .notion-math-card .katex {
-  font-size: 1.3em !important;
-  color: #1a1a1a !important;
+  font-size: 1.4em !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .notion-math-card .katex-display {
   margin: 0 !important;
+  padding: 8px 0;
 }
 
 /* Dark mode para cards matemáticos */
 .dark .notion-math-card {
-  background: #2a2a2a;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: hsl(var(--muted) / 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .dark .notion-math-card .katex {
-  color: #e0e0e0 !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Chat message content - texto expande corretamente */
+.chat-message-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.7;
+}
+
+.chat-message-content p {
+  margin-bottom: 0.75em;
+}
+
+.chat-message-content p:last-child {
+  margin-bottom: 0;
 }
 
 /* Mobile responsiveness para cards matemáticos */
 @media (max-width: 640px) {
   .notion-math-card {
-    padding: 20px 24px;
-    max-width: 90%;
-    font-size: 0.95em;
+    padding: 16px 20px;
+    border-radius: 12px;
   }
   
   .notion-math-card .katex {
     font-size: 1.2em !important;
+  }
+}
+
+/* Skeleton loading animation */
+.skeleton-loading {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted) / 0.6) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Fade-in animation for chat messages */
+.message-fade-in {
+  animation: messageFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes messageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scanner animation for camera processing */
+.scanner-animation {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanner-animation::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
+  animation: scan 1.5s ease-in-out infinite;
+}
+
+@keyframes scan {
+  0%, 100% {
+    top: 0;
+  }
+  50% {
+    top: 100%;
   }
 }
