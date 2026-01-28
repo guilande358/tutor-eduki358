@@ -13,26 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import MicroLessonPanel from "./MicroLessonPanel";
 import { Capacitor } from "@capacitor/core";
-
-// Tipagem para Unity Ads (web / bridge)
-declare global {
-  interface Window {
-    UnityAds: {
-      init: (config: { gameId: string; debug: boolean }) => void;
-      load: (placementId: string) => void;
-      isReady: (placementId: string) => boolean;
-      show: (
-        placementId: string,
-        callbacks: {
-          onStart?: () => void;
-          onComplete?: (rewarded: boolean) => void;
-          onError?: (error: any) => void;
-          onClose?: () => void;
-        }
-      ) => void;
-    };
-  }
-}
+import "@/types/unity-ads.d.ts";
 
 interface LivesTimerProps {
   userId: string;
