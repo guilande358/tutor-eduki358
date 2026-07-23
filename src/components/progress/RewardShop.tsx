@@ -92,7 +92,7 @@ const RewardShop = ({ userId, userXp, onPurchase }: RewardShopProps) => {
 
       await supabase
         .from("user_progress")
-        .update(updateData)
+        .update(updateData as never)
         .eq("user_id", userId);
 
       // Registrar compra (exceto vidas que são consumíveis)
