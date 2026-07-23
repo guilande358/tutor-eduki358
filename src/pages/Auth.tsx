@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +10,18 @@ import { useToast } from "@/components/ui/use-toast";
 import { GraduationCap, Sparkles } from "lucide-react";
 import Footer from "@/components/Footer";
 
+// Only allow same-origin relative paths as post-login redirect targets.
+const safeNext = (raw: string | null) =>
+  raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = safeNext(searchParams.get("next"));
   const { toast } = useToast();
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -30,7 +36,7 @@ const Auth = () => {
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}${next}`,
         },
       });
 
@@ -41,7 +47,7 @@ const Auth = () => {
         description: "Bem-vindo ao EduKI! Redirecionando...",
       });
 
-      setTimeout(() => navigate("/"), 1000);
+      setTimeout(() => navigate(next), 1000);
     } catch (error: any) {
       toast({
         title: "Erro ao criar conta",
@@ -70,7 +76,7 @@ const Auth = () => {
         description: "Bem-vindo de volta!",
       });
 
-      navigate("/");
+      navigate(next);
     } catch (error: any) {
       toast({
         title: "Erro ao fazer login",
