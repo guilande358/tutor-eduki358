@@ -77,7 +77,7 @@ const ProfileDrawer = ({ userId }: ProfileDrawerProps) => {
   const updateSettings = async (field: string, value: any) => {
     await supabase
       .from('user_progress')
-      .update({ [field]: value })
+      .update({ [field]: value } as never)
       .eq('user_id', userId);
 
     setProgress(prev => prev ? { ...prev, [field]: value } : null);
