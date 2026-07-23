@@ -118,7 +118,7 @@ export const useCredits = (userId: string) => {
     if (!userId) return;
 
     const channel = supabase
-      .channel(`credits-realtime-${userId}`)
+      .channel(`credits-realtime-${userId}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
