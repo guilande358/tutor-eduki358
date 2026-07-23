@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import MenuPage from "./pages/MenuPage";
 import DailyQuizPage from "./pages/DailyQuizPage";
 import DailyQuizSetup from "./pages/DailyQuizSetup";
+import OAuthConsent from "./pages/OAuthConsent";
 import "./i18n/config";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/menu" element={<MenuPage />} />
           <Route path="/daily-quiz" element={<DailyQuizPage />} />
           <Route path="/quiz-setup" element={<DailyQuizSetup />} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
