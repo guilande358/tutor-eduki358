@@ -48,10 +48,15 @@ const Index = () => {
     const tab = searchParams.get("tab");
     const roomCode = searchParams.get("code");
     
-    if (roomCode && user) {
+    if (roomCode) {
+      sessionStorage.setItem("pending_room_code", roomCode);
+    }
+
+    const activeCode = roomCode || sessionStorage.getItem("pending_room_code");
+
+    if (activeCode && user) {
       setShowStudyRoom(true);
     } else if (tab) {
-      // Handle menu navigation
       if (tab === "study-room") {
         setShowStudyRoom(true);
       } else if (tab === "premium") {
@@ -59,7 +64,6 @@ const Index = () => {
       } else {
         setActiveTab(tab);
       }
-      // Clear the param after handling
       setSearchParams({});
     }
   }, [searchParams, user]);
