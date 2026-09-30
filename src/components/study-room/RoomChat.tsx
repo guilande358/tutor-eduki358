@@ -1,14 +1,14 @@
-import { useEffect, useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Bot } from "lucide-react";
 import MathRenderer from "@/components/MathRenderer";
-import AttachmentButton from "@/components/AttachmentButton";
-import CameraScanButton from "@/components/CameraScanButton";
+import AttachmentButton from "./AttachmentButton";
+import CameraScanButton from "./CameraScanButton";
 
 interface RoomChatProps {
   roomId: string;
@@ -22,23 +22,24 @@ interface Message {
   content: string;
   content_type: string;
   created_at: string;
-  user_name?: string;
 }
 
 const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadMessages();
-    subscribeToMessages();
+    const cleanup = setupRealtimeSubscription();
+    return () => {
+      cleanup();
+    };
   }, [roomId]);
 
   useEffect(() => {
-    // Auto-scroll to bottom
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -49,33 +50,33 @@ const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
       .from("room_messages")
       .select("*")
       .eq("room_id", roomId)
-      .order("created_at", { ascending: true })
-      .limit(100);
+      .order("created_at", { ascending: true });
 
     if (data) {
-      setMessages(data);
-      // Load user names
+      setMessages(data as Message[]);
       const userIds = [...new Set(data.map((m) => m.user_id))];
       loadUserNames(userIds);
     }
   };
 
   const loadUserNames = async (userIds: string[]) => {
+    if (userIds.length === 0) return;
+
     const { data } = await supabase
       .from("profiles")
-      .select("id, full_name")
+      .select("id, name")
       .in("id", userIds);
 
     if (data) {
       const names: Record<string, string> = {};
       data.forEach((p) => {
-        names[p.id] = p.full_name || "Anônimo";
+        names[p.id] = p.name || "Usuário";
       });
-      setUserNames(names);
+      setUserNames((prev) => ({ ...prev, ...names }));
     }
   };
 
-  const subscribeToMessages = () => {
+  const setupRealtimeSubscription = () => {
     const channel = supabase
       .channel(`room-messages-${roomId}`)
       .on(
@@ -90,7 +91,6 @@ const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
           const newMsg = payload.new as Message;
           setMessages((prev) => [...prev, newMsg]);
           
-          // Load user name if not cached
           if (!userNames[newMsg.user_id]) {
             loadUserNames([newMsg.user_id]);
           }
@@ -108,7 +108,6 @@ const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
 
     setLoading(true);
     try {
-      // Detectar se contém LaTeX
       const hasLatex = newMessage.includes("\\") || 
                        newMessage.includes("$") || 
                        newMessage.includes("^") ||
@@ -126,13 +125,6 @@ const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
       console.error("Erro ao enviar mensagem:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
     }
   };
 
@@ -154,8 +146,9 @@ const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
       <ScrollArea className="flex-1 p-3" ref={scrollRef}>
         <div className="space-y-3">
           {messages.map((msg) => {
-            const isOwn = msg.user_id === userId;
-            const senderName = userNames[msg.user_id] || "...";
+            const isTutor = msg.content.startsWith("🤖");
+            const isOwn = !isTutor && msg.user_id === userId;
+            const senderName = isTutor ? "Tutor EduKI" : (userNames[msg.user_id] || "Colega");
 
             return (
               <div
@@ -163,20 +156,28 @@ const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
                 className={`flex gap-2 ${isOwn ? "flex-row-reverse" : ""}`}
               >
                 <Avatar className="w-8 h-8 flex-shrink-0">
-                  <AvatarFallback className={isOwn ? "bg-primary text-white" : ""}>
-                    {getInitials(senderName)}
+                  <AvatarFallback className={
+                    isTutor 
+                      ? "bg-primary text-primary-foreground font-bold" 
+                      : isOwn 
+                        ? "bg-primary text-white" 
+                        : "bg-muted"
+                  }>
+                    {isTutor ? <Bot className="w-4 h-4" /> : getInitials(senderName)}
                   </AvatarFallback>
                 </Avatar>
 
                 <div className={`max-w-[80%] ${isOwn ? "text-right" : ""}`}>
-                  <p className="text-xs text-muted-foreground mb-1">
-                    {isOwn ? "Você" : senderName}
+                  <p className="text-xs text-muted-foreground mb-1 font-medium">
+                    {isTutor ? "🤖 Tutor EduKI" : isOwn ? "Você" : senderName}
                   </p>
                   <div
                     className={`p-3 rounded-lg ${
-                      isOwn
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+                      isTutor
+                        ? "bg-primary/10 border border-primary/20 text-foreground"
+                        : isOwn
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
                     }`}
                   >
                     {msg.content_type === "latex" ? (
@@ -206,8 +207,7 @@ const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
             disabled={loading}
           />
           <CameraScanButton
-            onImageCapture={(base64) => {
-              // Add message with image indicator
+            onImageCapture={(_base64) => {
               setNewMessage(prev => prev ? prev + " 📷 [Imagem anexada]" : "📷 Analisar esta imagem de exercício");
             }}
             disabled={loading}
@@ -238,7 +238,7 @@ const RoomChat = ({ roomId, userId, userName }: RoomChatProps) => {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Use fórmulas ou câmera para enviar exercícios
+          Use fórmulas ou câmara para enviar exercícios
         </p>
       </div>
     </Card>
