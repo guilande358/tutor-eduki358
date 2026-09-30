@@ -7,8 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, Loader2, Bot } from "lucide-react";
 import MathRenderer from "@/components/MathRenderer";
-import AttachmentButton from "./AttachmentButton";
-import CameraScanButton from "./CameraScanButton";
+import AttachmentButton from "@/components/AttachmentButton";
+import CameraScanButton from "@/components/CameraScanButton";
 
 interface RoomChatProps {
   roomId: string;
