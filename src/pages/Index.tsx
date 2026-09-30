@@ -68,7 +68,7 @@ const Index = () => {
     }
   }, [searchParams, user]);
 
-  useEffect(() => {
+   useEffect(() => {
     // Aplicar tema salvo
     const applyTheme = async () => {
       if (user) {
@@ -85,15 +85,14 @@ const Index = () => {
     };
     applyTheme();
 
-          if (!session) {
+    // Verificar sessão atual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (!session) {
         const currentCode = searchParams.get("code");
         if (currentCode) {
           sessionStorage.setItem("pending_room_code", currentCode);
         }
-        navigate("/auth");
-      }
-
-      if (!session) {
         navigate("/auth");
       }
     });
@@ -102,12 +101,17 @@ const Index = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (!session) {
+        const currentCode = searchParams.get("code");
+        if (currentCode) {
+          sessionStorage.setItem("pending_room_code", currentCode);
+        }
         navigate("/auth");
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, user?.id]);
+  }, [navigate, user, searchParams]);
+
 
   useEffect(() => {
     if (user) {
