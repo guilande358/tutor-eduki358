@@ -40,18 +40,19 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
   const [participantNames, setParticipantNames] = useState<Map<string, string>>(new Map());
   const { toast } = useToast();
 
-  const codeFromUrl = searchParams.get("code");
+  const codeFromUrl = searchParams.get("code") || sessionStorage.getItem("pending_room_code");
 
-  // Media devices hook - audio only for local, video comes via WebRTC
+  // Media devices hook
   const {
     mediaState,
     stream: localStream,
     toggleMicrophone,
-    startMicrophone,
+    toggleCamera,
     stopMicrophone,
+    stopCamera,
   } = useMediaDevices();
 
-  // WebRTC hook - only active when in a room
+  // WebRTC hook
   const {
     remoteStreams,
     connectToParticipants,
@@ -65,46 +66,54 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
   useEffect(() => {
     if (codeFromUrl) {
       joinRoomByCode(codeFromUrl);
+      sessionStorage.removeItem("pending_room_code");
     }
   }, [codeFromUrl]);
 
-  // Start microphone when entering room (audio-only local)
   useEffect(() => {
-    if (room) {
-      const initMedia = async () => {
-        await startMicrophone();
+    if (room?.id) {
+      loadParticipantsAndConnect();
+
+      // Sincronização em tempo real de novos participantes
+      const channel = supabase
+        .channel(`room-participants-sync-${room.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "room_participants",
+            filter: `room_id=eq.${room.id}`,
+          },
+          () => {
+            loadParticipantsAndConnect();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
       };
-      initMedia().catch(console.error);
     }
-    return () => {
-      stopMicrophone();
-      disconnectWebRTC();
-    };
   }, [room?.id]);
 
-  // Connect to participants when room is joined
-  useEffect(() => {
-    if (room && localStream) {
-      loadParticipantsAndConnect();
-    }
-  }, [room?.id, localStream]);
-
   const loadParticipantsAndConnect = async () => {
-    if (!room) return;
+    if (!room?.id) return;
 
     const { data: participants } = await supabase
       .from("room_participants")
       .select("user_id")
       .eq("room_id", room.id);
 
-    if (participants) {
-      const participantIds = participants.map(p => p.user_id).filter(id => id !== userId);
-      
-      // Load names
+    if (participants && participants.length > 0) {
+      const participantIds = participants
+        .map(p => p.user_id)
+        .filter(id => id !== userId);
+
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, full_name")
-        .in("id", participantIds);
+        .in("id", participants.map(p => p.user_id));
 
       if (profiles) {
         const names = new Map<string, string>();
@@ -112,7 +121,6 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
         setParticipantNames(names);
       }
 
-      // Connect via WebRTC
       connectToParticipants(participantIds);
     }
   };
@@ -126,17 +134,18 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
       .maybeSingle();
 
     if (data && !error) {
-      // Add as participant
-      await supabase.from("room_participants").upsert({
-        room_id: data.id,
-        user_id: userId,
-      });
+      await supabase.from("room_participants").upsert(
+        {
+          room_id: data.id,
+          user_id: userId,
+        },
+        { onConflict: "room_id,user_id" }
+      );
       setRoom(data as Room);
     }
   };
 
-  const handleJoinRoom = (roomId: string, roomCode: string) => {
-    // Fetch room details
+  const handleJoinRoom = (roomId: string) => {
     supabase
       .from("study_rooms")
       .select("*")
@@ -154,6 +163,7 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
 
     disconnectWebRTC();
     stopMicrophone();
+    stopCamera();
 
     await supabase
       .from("room_participants")
@@ -194,7 +204,6 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
   const handleToggleTutor = async (active: boolean) => {
     setIsTutorActive(active);
     
-    // Update participant record
     await supabase
       .from("room_participants")
       .update({ is_tutor_active: active })
@@ -214,7 +223,6 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
 
     setTutorLoading(true);
     try {
-      // Send question to chat
       await supabase.from("room_messages").insert({
         room_id: room.id,
         user_id: userId,
@@ -222,23 +230,19 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
         content_type: "text",
       });
 
-      // Call AI tutor with humanized personality
-      const { data, error } = await supabase.functions.invoke("ai-tutor", {
+      const { data } = await supabase.functions.invoke("ai-tutor", {
         body: {
-          messages: [
-            { role: "user", content: question }
-          ],
+          messages: [{ role: "user", content: question }],
           kiLevel: 50,
           isStudyRoom: true,
         },
       });
 
       if (data?.reply) {
-        // Post AI response to chat
         await supabase.from("room_messages").insert({
           room_id: room.id,
           user_id: userId,
-          content: `🤖 **Tutor EduKI:**\n\n${data.reply}`,
+          content: `🤖 ${data.reply}`,
           content_type: "latex",
         });
       }
@@ -306,11 +310,9 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
         </div>
       </div>
 
-      {/* Main Content - Responsive Layout */}
+      {/* Main Content */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
-        {/* Left Column: Whiteboard + Remote Video Grid */}
         <div className="lg:col-span-2 flex flex-col gap-4 min-h-[300px] lg:min-h-0">
-          {/* Remote Video Grid (streaming via WebRTC) */}
           {showVideo && (
             <div className="h-[200px] lg:h-[180px]">
               <VideoGrid
@@ -319,21 +321,25 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
                 participantNames={participantNames}
                 localUserId={userId}
                 localUserName={userName}
-                isCameraOn={false}
+                isCameraOn={mediaState.isVideoEnabled}
                 isMicOn={mediaState.isAudioEnabled}
               />
             </div>
           )}
           
-          {/* Whiteboard */}
           <div className="flex-1 min-h-[200px]">
             <Whiteboard roomId={room.id} />
           </div>
         </div>
 
-        {/* Sidebar - Chat, Media & Participants */}
         <div className="flex flex-col gap-4 min-h-[300px] lg:min-h-0">
-          <MediaControls compact />
+          <MediaControls 
+            compact 
+            isVideoEnabled={mediaState.isVideoEnabled}
+            onToggleCamera={toggleCamera}
+            isAudioEnabled={mediaState.isAudioEnabled}
+            onToggleMicrophone={toggleMicrophone}
+          />
           <ParticipantGrid
             roomId={room.id}
             hostUserId={room.host_user_id}
@@ -346,7 +352,6 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
         </div>
       </div>
 
-      {/* Floating Tutor Button */}
       <CallTutorButton
         isTutorActive={isTutorActive}
         onToggleTutor={handleToggleTutor}
@@ -354,7 +359,6 @@ const StudyRoomPage = ({ userId, userName, onBack }: StudyRoomPageProps) => {
         loading={tutorLoading}
       />
 
-      {/* Footer GTECHS */}
       <Footer />
     </motion.div>
   );
