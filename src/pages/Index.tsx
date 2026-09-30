@@ -85,9 +85,14 @@ const Index = () => {
     };
     applyTheme();
 
-    // Verificar sessão atual
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+          if (!session) {
+        const currentCode = searchParams.get("code");
+        if (currentCode) {
+          sessionStorage.setItem("pending_room_code", currentCode);
+        }
+        navigate("/auth");
+      }
+
       if (!session) {
         navigate("/auth");
       }
